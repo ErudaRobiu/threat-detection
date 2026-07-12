@@ -46,6 +46,7 @@ import { detectBrandImpersonation, SHORTENER_DOMAINS } from "./rules";
 // ---------------------------------------------------------------------------
 
 export const REDACTION_TOKEN = "[LINK]";
+export const EMAIL_TOKEN = "[EMAIL]";
 export const MAX_AI_INPUT_CHARS = 8000;
 
 const SCHEME_URL = /\b(?:https?|ftp):\/\/[^\s<>()]+/gi;
@@ -63,17 +64,19 @@ function isRealDomain(host: string): boolean {
 }
 
 /**
- * Replace anything that reveals WHERE a link points — full URLs, www hosts,
- * email addresses, and bare registrable domains — with the literal token
- * [LINK], while PRESERVING that a link exists. "Confirm your details here:
- * [LINK]" still carries the action_coercion signal a human reads; it just
+ * Replace anything that reveals WHERE something points with a token, while
+ * PRESERVING that it exists. URLs, www hosts, and bare registrable domains
+ * become [LINK]; email addresses become [EMAIL], because an address in body
+ * text ("reply to [EMAIL]") is a different linguistic signal from a hyperlink
+ * and collapsing both into one token would lose that. "Confirm your details
+ * here: [LINK]" still carries the action_coercion signal a human reads; it just
  * cannot tell the AI which domain the link goes to.
  */
 export function redactLinks(text: string): string {
   let out = text
     .replace(SCHEME_URL, REDACTION_TOKEN)
     .replace(WWW_URL, REDACTION_TOKEN)
-    .replace(EMAIL, REDACTION_TOKEN);
+    .replace(EMAIL, EMAIL_TOKEN);
 
   // Bare domains: only redact strings the public-suffix list confirms are real
   // registrable domains, so ordinary prose ("Node.js", "e.g.", "report.pdf")
@@ -362,7 +365,10 @@ export async function preprocess(raw: string, explicitType?: ContentType): Promi
   if (contentType === "email") {
     const parsed = await simpleParser(raw);
     email = extractEmailFacts(parsed);
-    humanText = emailHumanText(parsed) || raw.trim();
+    // Subject + body only. Headers (Received, Return-Path, Message-ID) are
+    // infrastructure and belong exclusively to the rule engine — never fall back
+    // to the raw message here, or they would leak into the text the AI reads.
+    humanText = emailHumanText(parsed);
   }
 
   const urlStrings = extractUrlStrings(humanText);

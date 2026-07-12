@@ -67,10 +67,10 @@ engineering.
 You are deliberately blind to all technical context. You do not know who sent
 the message, what domain it came from, how old any web address is, whether any
 link is genuine, or whether the message passed any authentication check. Do not
-speculate about any of these. Any link in the text has been replaced with the
-token [LINK]; treat it only as evidence that a link is present, never as
-something whose safety you can judge. You are judging language, not
-infrastructure.
+speculate about any of these. Any web link in the text has been replaced with
+the token [LINK] and any email address with the token [EMAIL]; treat each only
+as evidence that a link or an address is present, never as something whose
+safety you can judge. You are judging language, not infrastructure.
 
 --------------------------------------------------------------------------
 MANIPULATION CONFIDENCE SCALE

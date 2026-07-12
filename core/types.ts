@@ -144,8 +144,10 @@ export interface Features {
    */
   text: string;
   /**
-   * `text` with every URL, email address, and bare domain replaced by the
-   * literal token [LINK]. This, and ONLY this, is passed to the AI layer.
+   * `text` with every URL and bare domain replaced by the token [LINK], and
+   * every email address by [EMAIL]. This, and ONLY this, is passed to the AI
+   * layer. For an email submission it is the subject and body only — never the
+   * headers, which are infrastructure the rule engine reads.
    *
    * The rule engine reads infrastructure (the domain, its age, its certificate);
    * the AI reads language (the words, the pressure, the ask). If the AI could

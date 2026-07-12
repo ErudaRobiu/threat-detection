@@ -41,9 +41,9 @@ describe("redaction — structural blindness", () => {
     );
   });
 
-  it("redacts email addresses whole (the domain is infrastructure)", () => {
+  it("redacts email addresses to a DISTINCT token (a different linguistic signal)", () => {
     expect(redactLinks("Reply to security@paypa1-verify.com to confirm")).toBe(
-      "Reply to [LINK] to confirm",
+      "Reply to [EMAIL] to confirm",
     );
   });
 
