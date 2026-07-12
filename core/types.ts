@@ -138,8 +138,23 @@ export interface FusionResult {
  */
 export interface Features {
   contentType: ContentType;
-  /** The raw text handed to the AI layer. */
+  /**
+   * The human-readable text of the submission (subject + body for an email).
+   * Kept for storage and display. NOT what the AI layer reads — see redactedText.
+   */
   text: string;
+  /**
+   * `text` with every URL, email address, and bare domain replaced by the
+   * literal token [LINK]. This, and ONLY this, is passed to the AI layer.
+   *
+   * The rule engine reads infrastructure (the domain, its age, its certificate);
+   * the AI reads language (the words, the pressure, the ask). If the AI could
+   * also see the domain, both layers would be scoring the same signal (a
+   * typosquat domain is already brand_similarity in rules.ts), R and A would
+   * stop being independent, and the HTSA agreement gate would measure nothing.
+   * Redaction enforces that independence structurally, not by instruction.
+   */
+  redactedText: string;
   /** Present for email submissions. */
   email?: {
     fromAddress: string | null;

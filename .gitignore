@@ -31,6 +31,9 @@ yarn-error.log*
 /data/*.db
 /data/*.db-*
 
+# gemini response cache (SHA-256 keyed; regenerated on demand)
+/.cache/
+
 # vercel
 .vercel
 
