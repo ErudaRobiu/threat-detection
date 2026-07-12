@@ -1,0 +1,32 @@
+
+ RUN  v3.2.7 /Users/Robiu/threat-detection
+
+ ✓ core/rules.test.ts > phishing email — all nine indicators applicable > marks all nine indicators applicable 1ms
+ ✓ core/rules.test.ts > phishing email — all nine indicators applicable > only IP-in-URL and subdomain depth pass (earned = 0.20) 0ms
+ ✓ core/rules.test.ts > phishing email — all nine indicators applicable > R = 0.800 0ms
+ ✓ core/rules.test.ts > google.com — clean URL submission > has six applicable indicators (the URL set), three not applicable 0ms
+ ✓ core/rules.test.ts > google.com — clean URL submission > all applicable indicators pass, so R = 0.000 0ms
+ ✓ core/rules.test.ts > google.com — un-normalised formula documents the misclassification > naive R (denominator = all nine weights) = 0.320, a Medium-Risk false positive 0ms
+ ✓ core/rules.test.ts > google.com — un-normalised formula documents the misclassification > the normalised engine does NOT reproduce the defect 0ms
+ ✓ core/rules.test.ts > plain text message — abstention > returns R = null (not 0, not 1) and zero applicable weight 0ms
+ ✓ core/rules.test.ts > brand impersonation detection > paypa1-verify.com impersonates paypal at normalised distance 0 1ms
+ ✓ core/rules.test.ts > brand impersonation detection > the homoglyph fold is what makes it distance 0 (raw distance is 1) 0ms
+ ✓ core/rules.test.ts > brand impersonation detection > microsotf.com impersonates microsoft at distance 2 (typosquat) 0ms
+ ✓ core/rules.test.ts > brand impersonation detection > google.com is not flagged (it is the official domain) 0ms
+ ✓ core/rules.test.ts > weights > sum to 1.000 across all nine indicators 0ms
+ ✓ core/htsa.test.ts > both layers agree — the gate opens > H = 0.846 1ms
+ ✓ core/htsa.test.ts > both layers agree — the gate opens > classifies Critical 0ms
+ ✓ core/htsa.test.ts > both layers agree — the gate opens > renders the substituted equation verbatim for the report 0ms
+ ✓ core/htsa.test.ts > both layers agree — the gate opens > H never exceeds the simple mean of the two scores 0ms
+ ✓ core/htsa.test.ts > layers disagree — the agreement gate suppresses the false positive > ablation (gamma = 0): H = 0.315 -> Medium Risk (FALSE POSITIVE) 0ms
+ ✓ core/htsa.test.ts > layers disagree — the agreement gate suppresses the false positive > real system (gamma = 0.2): H = 0.268 -> Low Risk (CORRECT) 0ms
+ ✓ core/htsa.test.ts > layers disagree — the agreement gate suppresses the false positive > the interaction term is what moved it across the 0.3 threshold 0ms
+ ✓ core/htsa.test.ts > rule abstention — H = A > H equals A exactly 0ms
+ ✓ core/htsa.test.ts > rule abstention — H = A > classifies on A alone and says so in the workings 0ms
+ ✓ core/htsa.test.ts > H never amplifies — soft-AND guarantee > H <= mean(R, A) across a grid of inputs 1ms
+
+ Test Files  2 passed (2)
+      Tests  23 passed (23)
+   Start at  11:47:27
+   Duration  392ms (transform 72ms, setup 0ms, collect 88ms, tests 8ms, environment 0ms, prepare 132ms)
+
