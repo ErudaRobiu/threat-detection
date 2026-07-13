@@ -50,7 +50,8 @@ loadEnvLocal();
 interface Case {
   n: number;
   description: string;
-  band: [number, number];
+  /** null = no expected band; the score is recorded and observed, never judged. */
+  band: [number, number] | null;
   text: string;
 }
 
@@ -130,6 +131,32 @@ Hey, something came up on my end tomorrow morning. Any chance we could push our 
 You recently requested to reset your password. Click the link below to choose a new one. This link will expire in 30 minutes for your security. If you didn't request a password reset, you can safely ignore this email and your password will remain unchanged.
 https://accounts.example.com/reset?token=abc123`,
   },
+  // ------------------------------------------------------------------------
+  // The REAL inverse trap. Item 6 was self-defusing ("no action needed"), so it
+  // never stressed the model. Items 9 and 10 are legitimate messages that are
+  // genuinely urgent AND genuinely demand action — the highest-A / low-R corner
+  // of the space, where the agreement gate does its heaviest lifting. No band:
+  // whatever they score is fine, because R is low and the gate handles it. We
+  // only need to KNOW the number. If they score high, that is the strongest
+  // Chapter 4 example, not a failure.
+  // ------------------------------------------------------------------------
+  {
+    n: 9,
+    description: "Genuine bank fraud alert that DEMANDS immediate action  [REAL TRAP]",
+    band: null,
+    text: `Subject: Suspicious transaction blocked — action required
+
+We blocked a transaction of N85,000 on your account. If this was not you, call us immediately on the number on the back of your card. Your account has been frozen and will remain restricted until you confirm this activity. For your protection, do not share your PIN or password with anyone.`,
+  },
+  {
+    n: 10,
+    description: "Genuine urgent internal work message, hard deadline + link  [REAL TRAP]",
+    band: null,
+    text: `Subject: Payroll cutoff is 5pm TODAY
+
+Reminder: the payroll cutoff is 5pm TODAY. If your timesheet is not submitted by then, you will not be paid this month. There are no exceptions. Submit your timesheet now at:
+https://hr.internal.example.com/timesheet`,
+  },
 ];
 
 const pad = (s: string, w: number) => (s.length > w ? s.slice(0, w - 1) + "…" : s.padEnd(w));
@@ -140,8 +167,17 @@ interface Row {
   A: number;
   survivingPatterns: { id: string; evidence: string }[];
   dropped: { id: unknown; evidence: unknown; reason: string }[];
-  inBand: boolean;
+  /** true/false when the case has a band; null when the case is observe-only. */
+  inBand: boolean | null;
   error?: string;
+}
+
+const expectedStr = (c: Case) => (c.band ? `${c.band[0].toFixed(2)}–${c.band[1].toFixed(2)}` : "(observe)");
+
+function verdictStr(r: Row): string {
+  if (r.error) return "ERROR";
+  if (r.inBand === null) return "OBSERVE";
+  return r.inBand ? "IN" : "OUT ***";
 }
 
 async function main() {
@@ -150,10 +186,16 @@ async function main() {
     console.error("GEMINI_API_KEY / GEMINI_MODEL missing from .env.local");
     process.exit(1);
   }
-  console.log(`model: ${model}   (credentials loaded from .env.local)\n`);
+
+  // Optional item filter: `vite-node eval/calibration.ts 9 10` runs only 9 and 10.
+  const wanted = new Set(process.argv.slice(2).map(Number).filter((n) => Number.isFinite(n)));
+  const cases = wanted.size > 0 ? CASES.filter((c) => wanted.has(c.n)) : CASES;
+  console.log(`model: ${model}   (credentials loaded from .env.local)`);
+  if (wanted.size > 0) console.log(`running items: ${cases.map((c) => c.n).join(", ")}`);
+  console.log("");
 
   const rows: Row[] = [];
-  for (const c of CASES) {
+  for (const c of cases) {
     const redacted = toRedactedText(c.text);
     try {
       const a = await analyzeTextDetailed(redacted);
@@ -163,10 +205,10 @@ async function main() {
         A: a.result.A,
         survivingPatterns: a.result.patterns.map((p) => ({ id: p.id, evidence: p.evidence })),
         dropped: a.dropped.map((d) => ({ id: d.id, evidence: d.evidence, reason: d.reason })),
-        inBand: a.result.A >= c.band[0] && a.result.A <= c.band[1],
+        inBand: c.band ? a.result.A >= c.band[0] && a.result.A <= c.band[1] : null,
       });
     } catch (err) {
-      rows.push({ c, redacted, A: NaN, survivingPatterns: [], dropped: [], inBand: false, error: (err as Error).message });
+      rows.push({ c, redacted, A: NaN, survivingPatterns: [], dropped: [], inBand: c.band ? false : null, error: (err as Error).message });
     }
   }
 
@@ -175,11 +217,9 @@ async function main() {
   console.log(header);
   console.log("-".repeat(110));
   for (const r of rows) {
-    const expected = `${r.c.band[0].toFixed(2)}–${r.c.band[1].toFixed(2)}`;
     const actual = Number.isNaN(r.A) ? "ERR" : r.A.toFixed(2);
-    const verdict = r.error ? "ERROR" : r.inBand ? "IN" : "OUT ***";
     const pats = r.error ? "(error)" : r.survivingPatterns.map((p) => p.id).join(", ") || "—";
-    console.log(`${pad(String(r.c.n), 3)}${pad(r.c.description, 52)}${pad(expected, 12)}${pad(actual, 8)}${pad(verdict, 10)}${pats}`);
+    console.log(`${pad(String(r.c.n), 3)}${pad(r.c.description, 52)}${pad(expectedStr(r.c), 12)}${pad(actual, 8)}${pad(verdictStr(r), 10)}${pats}`);
   }
 
   // --- Per-item detail ------------------------------------------------------
@@ -187,7 +227,8 @@ async function main() {
   for (const r of rows) {
     console.log(`\n${"=".repeat(72)}`);
     console.log(`item ${r.c.n} — ${r.c.description}`);
-    console.log(`expected ${r.c.band[0].toFixed(2)}–${r.c.band[1].toFixed(2)}   actual ${Number.isNaN(r.A) ? "ERR" : r.A.toFixed(2)}   ${r.error ? "ERROR" : r.inBand ? "IN BAND" : "OUT OF BAND ***"}`);
+    const verdictWord = r.error ? "ERROR" : r.inBand === null ? "OBSERVE (no band)" : r.inBand ? "IN BAND" : "OUT OF BAND ***";
+    console.log(`expected ${expectedStr(r.c)}   actual ${Number.isNaN(r.A) ? "ERR" : r.A.toFixed(2)}   ${verdictWord}`);
     if (r.error) {
       console.log(`error: ${r.error}`);
       continue;
@@ -203,17 +244,23 @@ async function main() {
   }
 
   // --- Verdict --------------------------------------------------------------
-  const byN = (n: number) => rows.find((r) => r.c.n === n)!;
-  const item5 = byN(5);
-  const item6 = byN(6);
-  const outOfBand = rows.filter((r) => !r.inBand && !r.error);
+  const banded = rows.filter((r) => r.c.band !== null);
+  const outOfBand = banded.filter((r) => r.inBand === false && !r.error);
   const errored = rows.filter((r) => r.error);
 
   console.log(`\n${"=".repeat(72)}`);
   console.log("VERDICT");
-  console.log(`Item 5 (marketing, the gate's reason to exist): A=${Number.isNaN(item5.A) ? "ERR" : item5.A.toFixed(2)} -> ${item5.error ? "ERROR" : item5.inBand ? "IN BAND" : "OUT OF BAND"}`);
-  console.log(`Item 6 (genuine bank alert, the inverse trap):  A=${Number.isNaN(item6.A) ? "ERR" : item6.A.toFixed(2)} -> ${item6.error ? "ERROR" : item6.inBand ? "IN BAND" : "OUT OF BAND"}`);
-  console.log(`Out of band: ${outOfBand.length}/${rows.length} (items ${outOfBand.map((r) => r.c.n).join(", ") || "none"})`);
+  const byN = (n: number) => rows.find((r) => r.c.n === n);
+  const say = (r: Row | undefined, label: string) => {
+    if (!r) return;
+    const a = Number.isNaN(r.A) ? "ERR" : r.A.toFixed(2);
+    console.log(`${label}: A=${a} -> ${r.error ? "ERROR" : r.inBand === null ? "OBSERVE" : r.inBand ? "IN BAND" : "OUT OF BAND"}`);
+  };
+  say(byN(5), "Item 5 (marketing, the gate's reason to exist)");
+  say(byN(6), "Item 6 (genuine bank alert, self-defusing)    ");
+  say(byN(9), "Item 9 (bank fraud alert, demands action)     ");
+  say(byN(10), "Item 10 (payroll deadline, demands action)    ");
+  if (banded.length > 0) console.log(`Out of band: ${outOfBand.length}/${banded.length} (items ${outOfBand.map((r) => r.c.n).join(", ") || "none"})`);
   console.log(`Errored:     ${errored.length}/${rows.length}`);
   console.log(`Total patterns dropped by the verbatim-evidence guard: ${totalDrops}`);
 }
