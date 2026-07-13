@@ -1,0 +1,265 @@
+/* Threat Detection System — global styles.
+   Deny-by-default UI: colour-coded verdicts, a legible score decomposition, and
+   an indicator table that shows the inapplicable rules greyed rather than hidden,
+   so the applicability normalisation is visible to a reader. */
+
+:root {
+  --bg: #0e1116;
+  --surface: #161b22;
+  --surface-2: #1c232d;
+  --border: #2a323d;
+  --text: #e6edf3;
+  --text-dim: #9aa7b4;
+  --text-faint: #5c6773;
+  --accent: #4c8dff;
+
+  --low: #2ea043;
+  --low-bg: #10251a;
+  --medium: #d9a000;
+  --medium-bg: #2a2210;
+  --high: #e2562b;
+  --high-bg: #2b1710;
+  --critical: #f0433a;
+  --critical-bg: #2e1213;
+
+  --radius: 10px;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body { padding: 0; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px 80px;
+}
+
+/* --- Header ------------------------------------------------------------- */
+.site-header {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+.site-header .inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.site-header h1 { font-size: 17px; margin: 0; letter-spacing: -0.01em; }
+.site-header nav { display: flex; gap: 18px; font-size: 14px; }
+.site-header nav a { color: var(--text-dim); }
+.site-header nav a:hover { color: var(--text); text-decoration: none; }
+
+/* --- Cards -------------------------------------------------------------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.card h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin: 0 0 14px;
+  font-weight: 600;
+}
+
+/* --- Form --------------------------------------------------------------- */
+textarea {
+  width: 100%;
+  min-height: 170px;
+  resize: vertical;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13.5px;
+  padding: 12px;
+  line-height: 1.5;
+}
+textarea:focus { outline: none; border-color: var(--accent); }
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: var(--sans);
+}
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.primary:hover { filter: brightness(1.08); }
+button.primary:disabled { opacity: 0.55; cursor: default; }
+
+.examples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.examples button {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.examples button:hover { color: var(--text); border-color: var(--text-faint); }
+
+.error-banner {
+  background: var(--critical-bg);
+  border: 1px solid var(--critical);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+.notice {
+  background: var(--medium-bg);
+  border: 1px solid var(--medium);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+
+/* --- Verdict block ------------------------------------------------------ */
+.verdict {
+  border-radius: var(--radius);
+  border: 1px solid;
+  padding: 22px;
+  margin-bottom: 20px;
+}
+.verdict .level { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+.verdict .action { margin-top: 8px; font-size: 15px; color: var(--text); }
+.verdict .meta { margin-top: 10px; font-size: 12.5px; color: var(--text-dim); }
+
+.risk-low { color: var(--low); border-color: var(--low); background: var(--low-bg); }
+.risk-medium { color: var(--medium); border-color: var(--medium); background: var(--medium-bg); }
+.risk-high { color: var(--high); border-color: var(--high); background: var(--high-bg); }
+.risk-critical { color: var(--critical); border-color: var(--critical); background: var(--critical-bg); }
+.risk-low .action, .risk-medium .action, .risk-high .action, .risk-critical .action { color: var(--text); }
+
+/* --- Score decomposition ------------------------------------------------ */
+.scores { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.score-tile {
+  flex: 1;
+  min-width: 90px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: center;
+}
+.score-tile .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+.score-tile .value { font-size: 26px; font-weight: 700; font-family: var(--mono); margin-top: 2px; }
+.score-tile .sub { font-size: 11px; color: var(--text-faint); }
+
+.workings {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  color: var(--text);
+}
+
+/* --- Indicator table ---------------------------------------------------- */
+.indicator-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.indicator-table th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 600;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.indicator-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.indicator-table tr:last-child td { border-bottom: none; }
+.indicator-table .detail { color: var(--text-dim); font-size: 12.5px; }
+.indicator-table td.weight { font-family: var(--mono); text-align: right; white-space: nowrap; }
+
+.row-na { color: var(--text-faint); }
+.row-na .weight { text-decoration: line-through; }
+.row-na .detail { color: var(--text-faint); }
+
+.tag { font-weight: 600; white-space: nowrap; }
+.tag-pass { color: var(--low); }
+.tag-fail { color: var(--critical); }
+.tag-na { color: var(--text-faint); }
+
+/* --- Patterns ----------------------------------------------------------- */
+.pattern { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.pattern:last-child { border-bottom: none; }
+.pattern .name { font-weight: 600; font-size: 13.5px; }
+.pattern .evidence {
+  margin-top: 6px;
+  border-left: 3px solid var(--accent);
+  padding: 6px 12px;
+  background: var(--surface-2);
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+  color: var(--text);
+  font-size: 14px;
+}
+.empty { color: var(--text-faint); font-size: 13.5px; }
+
+.explanation { font-size: 15px; line-height: 1.65; }
+
+.timings { font-size: 12px; color: var(--text-faint); font-family: var(--mono); margin-top: 4px; }
+
+.spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: -2px; margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 560px) {
+  .verdict .level { font-size: 24px; }
+  .score-tile .value { font-size: 22px; }
+  .indicator-table .detail { display: none; }
+}

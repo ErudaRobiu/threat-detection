@@ -1,0 +1,529 @@
+{
+  "2bfa452b7e814f745052f9488f36389bce5effb2a59cd55059d166f746ff3ca5": {
+    "id": 1783955397714,
+    "contentType": "email",
+    "ruleScore": 0.72,
+    "aiScore": 0.96,
+    "hybridScore": 0.8102399999999998,
+    "classification": "Critical",
+    "action": "Content blocked. Urgent threat alert. Do not engage with this content under any circumstances.",
+    "workings": "H = 0.4(0.720) + 0.4(0.960) + 0.2(0.720 x 0.960)\nH = 0.288 + 0.384 + 0.138\nH = 0.810",
+    "indicators": [
+      {
+        "id": "domain_age",
+        "label": "Domain age",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": false,
+        "detail": "Registration date for paypa1-verify-secure.com could not be established. Under deny-by-default, an unverifiable domain is treated as unverified, not as clean."
+      },
+      {
+        "id": "ssl_certificate",
+        "label": "SSL certificate",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": false,
+        "detail": "paypa1-verify-secure.com could not be reached for TLS verification. Absence of verification is not verification."
+      },
+      {
+        "id": "url_ip_address",
+        "label": "IP address in URL",
+        "weight": 0.12,
+        "applicable": true,
+        "passed": true,
+        "detail": "All links resolve to registered domain names rather than raw IP addresses."
+      },
+      {
+        "id": "brand_similarity",
+        "label": "Brand similarity",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": false,
+        "detail": "paypa1-verify-secure.com contains the brand name \"paypal\" but is not an official paypal domain."
+      },
+      {
+        "id": "subdomain_depth",
+        "label": "Subdomain depth",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": true,
+        "detail": "Subdomain nesting is within normal bounds."
+      },
+      {
+        "id": "email_auth",
+        "label": "Email authentication (SPF/DKIM/DMARC)",
+        "weight": 0.12,
+        "applicable": true,
+        "passed": false,
+        "detail": "Sender authentication could not be verified (SPF: fail, DKIM: none, DMARC: fail). The message cannot be proven to originate from the domain it claims."
+      },
+      {
+        "id": "reply_to_mismatch",
+        "label": "Reply-to mismatch",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": false,
+        "detail": "Replies would be sent to recovery-team@mail-secure.ru (mail-secure.ru), not to the apparent sender at paypa1-verify-secure.com. The response destination is concealed."
+      },
+      {
+        "id": "html_form_in_email",
+        "label": "Credential form in body",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": false,
+        "detail": "The message body contains an embedded form with credential input fields. Legitimate organisations do not collect passwords inside an email."
+      },
+      {
+        "id": "url_shortener",
+        "label": "URL shortener",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": true,
+        "detail": "No link-shortening services are used."
+      }
+    ],
+    "patterns": [
+      {
+        "id": "authority_impersonation",
+        "label": "Authority impersonation",
+        "evidence": "PayPal Security"
+      },
+      {
+        "id": "emotional_exploitation",
+        "label": "Emotional exploitation",
+        "evidence": "unauthorized login to your account, which has now been temporarily limited"
+      },
+      {
+        "id": "urgency_manipulation",
+        "label": "Urgency manipulation",
+        "evidence": "verify your identity within 24 hours or your account will be permanently suspended"
+      },
+      {
+        "id": "credential_harvesting",
+        "label": "Credential harvesting",
+        "evidence": "Confirm your password and card details"
+      },
+      {
+        "id": "action_coercion",
+        "label": "Action coercion",
+        "evidence": "Confirm your password and card details to restore access: [LINK]"
+      }
+    ],
+    "explanation": "This message pretends to be PayPal's security team, creating a false sense of alarm about an unauthorized login and a limited account. It imposes a strict 24-hour deadline to pressure the reader into clicking a link and providing their password and card details. This combination of impersonation, manufactured urgency, and a demand for sensitive credentials is a clear sign of fraud.",
+    "aiAvailable": true,
+    "weights": {
+      "alpha": 0.4,
+      "beta": 0.4,
+      "gamma": 0.2
+    },
+    "timings": {
+      "rules": 347,
+      "ai": 2,
+      "total": 349
+    },
+    "createdAt": "2026-07-13T15:09:57.714Z"
+  },
+  "4cb10c6fe9ccc1b00b4d0490002aa29020349df2835c8c9c952d55e4ae4ee6ff": {
+    "id": 1783955402254,
+    "contentType": "email",
+    "ruleScore": 0,
+    "aiScore": 0.05,
+    "hybridScore": 0.020000000000000004,
+    "classification": "Low",
+    "action": "Content cleared. Informational summary of the analysis performed is provided below.",
+    "workings": "H = 0.4(0.000) + 0.4(0.050) + 0.2(0.000 x 0.050)\nH = 0.000 + 0.020 + 0.000\nH = 0.020",
+    "indicators": [
+      {
+        "id": "domain_age",
+        "label": "Domain age",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": true,
+        "detail": "All domains are established (oldest link is 6851 days old)."
+      },
+      {
+        "id": "ssl_certificate",
+        "label": "SSL certificate",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": true,
+        "detail": "All linked hosts present a valid TLS certificate."
+      },
+      {
+        "id": "url_ip_address",
+        "label": "IP address in URL",
+        "weight": 0.12,
+        "applicable": true,
+        "passed": true,
+        "detail": "All links resolve to registered domain names rather than raw IP addresses."
+      },
+      {
+        "id": "brand_similarity",
+        "label": "Brand similarity",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": true,
+        "detail": "No linked domain resembles a known impersonated brand."
+      },
+      {
+        "id": "subdomain_depth",
+        "label": "Subdomain depth",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": true,
+        "detail": "Subdomain nesting is within normal bounds."
+      },
+      {
+        "id": "email_auth",
+        "label": "Email authentication (SPF/DKIM/DMARC)",
+        "weight": 0.12,
+        "applicable": true,
+        "passed": true,
+        "detail": "Sender authentication verified (SPF: pass, DKIM: pass, DMARC: pass). The sending server is authorised for this domain."
+      },
+      {
+        "id": "reply_to_mismatch",
+        "label": "Reply-to mismatch",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": true,
+        "detail": "Reply-to address matches the sender domain."
+      },
+      {
+        "id": "html_form_in_email",
+        "label": "Credential form in body",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": true,
+        "detail": "No credential input fields are embedded in the message body."
+      },
+      {
+        "id": "url_shortener",
+        "label": "URL shortener",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": true,
+        "detail": "No link-shortening services are used."
+      }
+    ],
+    "patterns": [],
+    "explanation": "This is a routine transactional receipt for a service. It explicitly states that no action is needed and provides an optional link for viewing history. There is no manipulative language, pressure, or request for sensitive information.",
+    "aiAvailable": true,
+    "weights": {
+      "alpha": 0.4,
+      "beta": 0.4,
+      "gamma": 0.2
+    },
+    "timings": {
+      "rules": 1000,
+      "ai": 3538,
+      "total": 4538
+    },
+    "createdAt": "2026-07-13T15:10:02.254Z"
+  },
+  "25d9c4983dcd619c484302a8e8b1b2f3ca8b3333b56d234cd2718ef24bbb1b72": {
+    "id": 1783955402530,
+    "contentType": "url",
+    "ruleScore": 0.588235294117647,
+    "aiScore": null,
+    "hybridScore": 0.588235294117647,
+    "classification": "Medium",
+    "action": "Content flagged. Exercise caution and review the detected indicators before engaging.",
+    "workings": "The content contained no analysable language, so the semantic layer abstained. The verdict rests on structural analysis alone.\nH = R = 0.588",
+    "indicators": [
+      {
+        "id": "domain_age",
+        "label": "Domain age",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": false,
+        "detail": "Registration date for paypa1-verify-secure.com could not be established. Under deny-by-default, an unverifiable domain is treated as unverified, not as clean."
+      },
+      {
+        "id": "ssl_certificate",
+        "label": "SSL certificate",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": false,
+        "detail": "paypa1-verify-secure.com could not be reached for TLS verification. Absence of verification is not verification."
+      },
+      {
+        "id": "url_ip_address",
+        "label": "IP address in URL",
+        "weight": 0.12,
+        "applicable": true,
+        "passed": true,
+        "detail": "All links resolve to registered domain names rather than raw IP addresses."
+      },
+      {
+        "id": "brand_similarity",
+        "label": "Brand similarity",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": false,
+        "detail": "paypa1-verify-secure.com contains the brand name \"paypal\" but is not an official paypal domain."
+      },
+      {
+        "id": "subdomain_depth",
+        "label": "Subdomain depth",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": true,
+        "detail": "Subdomain nesting is within normal bounds."
+      },
+      {
+        "id": "email_auth",
+        "label": "Email authentication (SPF/DKIM/DMARC)",
+        "weight": 0.12,
+        "applicable": false,
+        "passed": false,
+        "detail": "Not applicable: submission is not an email with headers."
+      },
+      {
+        "id": "reply_to_mismatch",
+        "label": "Reply-to mismatch",
+        "weight": 0.1,
+        "applicable": false,
+        "passed": false,
+        "detail": "Not applicable: submission is not an email with headers."
+      },
+      {
+        "id": "html_form_in_email",
+        "label": "Credential form in body",
+        "weight": 0.1,
+        "applicable": false,
+        "passed": false,
+        "detail": "Not applicable: submission is not an email with headers."
+      },
+      {
+        "id": "url_shortener",
+        "label": "URL shortener",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": true,
+        "detail": "No link-shortening services are used."
+      }
+    ],
+    "patterns": [],
+    "explanation": "",
+    "aiAvailable": true,
+    "weights": {
+      "alpha": 0.4,
+      "beta": 0.4,
+      "gamma": 0.2
+    },
+    "timings": {
+      "rules": 276,
+      "ai": 0,
+      "total": 276
+    },
+    "createdAt": "2026-07-13T15:10:02.530Z"
+  },
+  "05046f26c83e8c88b3ddab2eab63d0d16224ac1e564535fc75cdceee47a0938d": {
+    "id": 1783955403385,
+    "contentType": "url",
+    "ruleScore": 0,
+    "aiScore": null,
+    "hybridScore": 0,
+    "classification": "Low",
+    "action": "Content cleared. Informational summary of the analysis performed is provided below.",
+    "workings": "The content contained no analysable language, so the semantic layer abstained. The verdict rests on structural analysis alone.\nH = R = 0.000",
+    "indicators": [
+      {
+        "id": "domain_age",
+        "label": "Domain age",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": true,
+        "detail": "All domains are established (oldest link is 10528 days old)."
+      },
+      {
+        "id": "ssl_certificate",
+        "label": "SSL certificate",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": true,
+        "detail": "All linked hosts present a valid TLS certificate."
+      },
+      {
+        "id": "url_ip_address",
+        "label": "IP address in URL",
+        "weight": 0.12,
+        "applicable": true,
+        "passed": true,
+        "detail": "All links resolve to registered domain names rather than raw IP addresses."
+      },
+      {
+        "id": "brand_similarity",
+        "label": "Brand similarity",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": true,
+        "detail": "No linked domain resembles a known impersonated brand."
+      },
+      {
+        "id": "subdomain_depth",
+        "label": "Subdomain depth",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": true,
+        "detail": "Subdomain nesting is within normal bounds."
+      },
+      {
+        "id": "email_auth",
+        "label": "Email authentication (SPF/DKIM/DMARC)",
+        "weight": 0.12,
+        "applicable": false,
+        "passed": false,
+        "detail": "Not applicable: submission is not an email with headers."
+      },
+      {
+        "id": "reply_to_mismatch",
+        "label": "Reply-to mismatch",
+        "weight": 0.1,
+        "applicable": false,
+        "passed": false,
+        "detail": "Not applicable: submission is not an email with headers."
+      },
+      {
+        "id": "html_form_in_email",
+        "label": "Credential form in body",
+        "weight": 0.1,
+        "applicable": false,
+        "passed": false,
+        "detail": "Not applicable: submission is not an email with headers."
+      },
+      {
+        "id": "url_shortener",
+        "label": "URL shortener",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": true,
+        "detail": "No link-shortening services are used."
+      }
+    ],
+    "patterns": [],
+    "explanation": "",
+    "aiAvailable": true,
+    "weights": {
+      "alpha": 0.4,
+      "beta": 0.4,
+      "gamma": 0.2
+    },
+    "timings": {
+      "rules": 854,
+      "ai": 0,
+      "total": 854
+    },
+    "createdAt": "2026-07-13T15:10:03.385Z"
+  },
+  "4d8696feb127a89b6b2a31dba1b42115c13c026a3cbfa28cad5f68f05ffa7bbc": {
+    "id": 1783955404539,
+    "contentType": "email",
+    "ruleScore": 0.17999999999999994,
+    "aiScore": 0.4,
+    "hybridScore": 0.2464,
+    "classification": "Low",
+    "action": "Content cleared. Informational summary of the analysis performed is provided below.",
+    "workings": "H = 0.4(0.180) + 0.4(0.400) + 0.2(0.180 x 0.400)\nH = 0.072 + 0.160 + 0.014\nH = 0.246",
+    "indicators": [
+      {
+        "id": "domain_age",
+        "label": "Domain age",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": true,
+        "detail": "All domains are established (oldest link is 6630 days old)."
+      },
+      {
+        "id": "ssl_certificate",
+        "label": "SSL certificate",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": true,
+        "detail": "All linked hosts present a valid TLS certificate."
+      },
+      {
+        "id": "url_ip_address",
+        "label": "IP address in URL",
+        "weight": 0.12,
+        "applicable": true,
+        "passed": true,
+        "detail": "All links resolve to registered domain names rather than raw IP addresses."
+      },
+      {
+        "id": "brand_similarity",
+        "label": "Brand similarity",
+        "weight": 0.15,
+        "applicable": true,
+        "passed": true,
+        "detail": "No linked domain resembles a known impersonated brand."
+      },
+      {
+        "id": "subdomain_depth",
+        "label": "Subdomain depth",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": true,
+        "detail": "Subdomain nesting is within normal bounds."
+      },
+      {
+        "id": "email_auth",
+        "label": "Email authentication (SPF/DKIM/DMARC)",
+        "weight": 0.12,
+        "applicable": true,
+        "passed": true,
+        "detail": "Sender authentication verified (SPF: pass, DKIM: pass, DMARC: pass). The sending server is authorised for this domain."
+      },
+      {
+        "id": "reply_to_mismatch",
+        "label": "Reply-to mismatch",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": false,
+        "detail": "Replies would be sent to reply@mailer.sendgrid.net (sendgrid.net), not to the apparent sender at bloomandco.com. The response destination is concealed."
+      },
+      {
+        "id": "html_form_in_email",
+        "label": "Credential form in body",
+        "weight": 0.1,
+        "applicable": true,
+        "passed": true,
+        "detail": "No credential input fields are embedded in the message body."
+      },
+      {
+        "id": "url_shortener",
+        "label": "URL shortener",
+        "weight": 0.08,
+        "applicable": true,
+        "passed": false,
+        "detail": "The link uses the shortening service bit.ly, which conceals the true destination until the moment of click."
+      }
+    ],
+    "patterns": [
+      {
+        "id": "urgency_manipulation",
+        "label": "Urgency manipulation",
+        "evidence": "these deals disappear the moment the clock strikes twelve, so act now before your favourites sell out for good"
+      },
+      {
+        "id": "action_coercion",
+        "label": "Action coercion",
+        "evidence": "Shop the sale here: [LINK]"
+      }
+    ],
+    "explanation": "This is a marketing email for a retail sale, using a deadline and scarcity to encourage the reader to make a purchase. While the language is pushy and creates a sense of urgency, it is legitimate commercial persuasion about a discount, not a threat or a fraudulent request. Therefore, it sits at the top of the promotional band.",
+    "aiAvailable": true,
+    "weights": {
+      "alpha": 0.4,
+      "beta": 0.4,
+      "gamma": 0.2
+    },
+    "timings": {
+      "rules": 1152,
+      "ai": 1,
+      "total": 1154
+    },
+    "createdAt": "2026-07-13T15:10:04.539Z"
+  }
+}
