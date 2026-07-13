@@ -17,8 +17,11 @@ import {
   toRedactedText,
   detectContentType,
   extractUrlStrings,
+  hasAnalysableLanguage,
+  analysableLength,
   REDACTION_TOKEN,
   MAX_AI_INPUT_CHARS,
+  MIN_ANALYSABLE_CHARS,
 } from "./preprocess";
 
 describe("redaction — structural blindness", () => {
@@ -107,6 +110,40 @@ describe("content-type detection", () => {
 
   it("treats prose as text even when it contains a link", () => {
     expect(detectContentType("Hey check out https://example.com when you can")).toBe("text");
+  });
+});
+
+describe("analysable-language threshold (semantic abstention boundary)", () => {
+  it(`N is ${MIN_ANALYSABLE_CHARS} characters`, () => {
+    expect(MIN_ANALYSABLE_CHARS).toBe(15);
+  });
+
+  // The three cases specified for this boundary, tested in both directions.
+  it("a bare link abstains", () => {
+    expect(hasAnalysableLanguage(redactLinks("https://paypa1-verify.com"))).toBe(false);
+    expect(analysableLength("[LINK]")).toBe(0);
+  });
+
+  it("a link with only framing abstains — no manipulation clause to read", () => {
+    const redacted = redactLinks("Check this out: https://paypa1-verify.com");
+    expect(redacted).toBe("Check this out: [LINK]");
+    expect(analysableLength(redacted)).toBe(12); // "Checkthisout"
+    expect(hasAnalysableLanguage(redacted)).toBe(false);
+  });
+
+  it("a link carrying a real threat clause does NOT abstain", () => {
+    const redacted = redactLinks("URGENT: verify now or lose your account: https://x.co/a");
+    expect(analysableLength(redacted)).toBe(32);
+    expect(hasAnalysableLanguage(redacted)).toBe(true);
+  });
+
+  it("the boundary itself: 14 chars abstains, 15 does not", () => {
+    expect(hasAnalysableLanguage("abcdefghijklmn")).toBe(false); // 14
+    expect(hasAnalysableLanguage("abcdefghijklmno")).toBe(true); // 15
+  });
+
+  it("an email address alone abstains (token stripped, nothing left)", () => {
+    expect(hasAnalysableLanguage(redactLinks("contact me at someone@example.com"))).toBe(false);
   });
 });
 

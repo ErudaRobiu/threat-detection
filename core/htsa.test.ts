@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { fuse, gateSuppression, ABLATION_WEIGHTS } from "./htsa";
+import { fuse, gateSuppression, ABLATION_WEIGHTS, NoAnalysableContentError } from "./htsa";
 import { DEFAULT_WEIGHTS } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -86,11 +86,53 @@ describe("rule abstention — H = A", () => {
   it("H equals A exactly", () => {
     expect(result.H).toBe(0.62);
     expect(result.ruleAbstained).toBe(true);
+    expect(result.aiAbstained).toBe(false);
   });
 
   it("classifies on A alone and says so in the workings", () => {
     expect(result.classification).toBe("High"); // 0.62 >= 0.6
     expect(result.workings).toContain("H = A");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Semantic abstention: A = null (a bare link, no analysable language). HTSA
+// defers to the rule engine. This is what lets a typosquat URL reach a real
+// verdict instead of being cleared to Low by A = 0 misread as "safe".
+// ---------------------------------------------------------------------------
+
+describe("semantic abstention — H = R", () => {
+  const result = fuse(0.59, null, DEFAULT_WEIGHTS);
+
+  it("H equals R exactly (not suppressed by a fabricated A = 0)", () => {
+    expect(result.H).toBeCloseTo(0.59, 9);
+    expect(result.aiAbstained).toBe(true);
+    expect(result.ruleAbstained).toBe(false);
+  });
+
+  it("classifies on R alone and says so in the workings", () => {
+    expect(result.classification).toBe("Medium"); // 0.59 >= 0.3, < 0.6
+    expect(result.workings).toContain("H = R");
+    expect(result.workings).toContain("semantic layer");
+  });
+
+  it("a clean bare URL (R = 0) still clears to Low", () => {
+    expect(fuse(0, null).classification).toBe("Low");
+  });
+
+  it("distinguishes a typosquat from a clean URL, which A = 0 fusion could not", () => {
+    expect(fuse(0.59, null).classification).toBe("Medium"); // typosquat: flagged
+    expect(fuse(0.0, null).classification).toBe("Low"); // google.com: cleared
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Both layers abstain: junk input. Nothing to fuse. Must throw, never return 0.
+// ---------------------------------------------------------------------------
+
+describe("both layers abstain — rejected, not zeroed", () => {
+  it("throws NoAnalysableContentError rather than returning H = 0", () => {
+    expect(() => fuse(null, null)).toThrow(NoAnalysableContentError);
   });
 });
 

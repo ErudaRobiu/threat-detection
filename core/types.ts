@@ -123,8 +123,10 @@ export interface FusionResult {
   /** The substituted equation, e.g. "H = 0.4(0.800) + 0.4(0.940) + 0.2(0.800 x 0.940) = 0.846".
    *  Rendered verbatim in the UI. This single string does more work in a defense than three pages of prose. */
   workings: string;
-  /** True when the rule engine abstained and H was taken from the AI layer alone. */
+  /** True when the rule engine abstained (R = null) and H was taken from the AI layer alone (H = A). */
   ruleAbstained: boolean;
+  /** True when the semantic layer abstained (A = null, no analysable language) and H rests on the rule layer (H = R). */
+  aiAbstained: boolean;
 }
 
 /**
@@ -194,8 +196,10 @@ export interface UrlFacts {
 export interface AnalysisResult {
   id: number;
   contentType: ContentType;
+  /** null = the rule engine abstained (no structural indicator applied). */
   ruleScore: number | null;
-  aiScore: number;
+  /** null = the semantic layer abstained (no analysable language, e.g. a bare link). */
+  aiScore: number | null;
   hybridScore: number;
   classification: RiskLevel;
   action: string;

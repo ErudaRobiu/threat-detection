@@ -98,6 +98,27 @@ export function toRedactedText(humanText: string): string {
   return truncateHead(redactLinks(humanText));
 }
 
+/**
+ * Below this many meaningful characters, the semantic layer abstains: there is
+ * no clause for it to read once the links are gone. See analyze.ts. The line is
+ * a property of the CONTENT, not the content type — a bare link pasted from
+ * WhatsApp arrives as `text`, and that is the case that matters most.
+ */
+export const MIN_ANALYSABLE_CHARS = 15;
+
+/** Alphanumeric character count after removing [LINK]/[EMAIL] tokens and punctuation. */
+export function analysableLength(redactedText: string): number {
+  return redactedText
+    .replace(/\[LINK\]|\[EMAIL\]/g, " ")
+    .replace(/[^A-Za-z0-9]+/g, "")
+    .length;
+}
+
+/** True when the redacted text carries enough language for the AI to judge (>= MIN_ANALYSABLE_CHARS). */
+export function hasAnalysableLanguage(redactedText: string): boolean {
+  return analysableLength(redactedText) >= MIN_ANALYSABLE_CHARS;
+}
+
 // ---------------------------------------------------------------------------
 // Content-type detection
 // ---------------------------------------------------------------------------

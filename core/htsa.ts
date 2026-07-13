@@ -81,6 +81,22 @@ export const ABLATION_WEIGHTS: HTSAWeights = {
   gamma: 0.0,
 };
 
+/**
+ * Thrown when BOTH layers abstain: the rule engine found no structural indicator
+ * (R = null) and the semantic layer found no analysable language (A = null).
+ * There is nothing to fuse. This is invalid input, not a score of zero —
+ * returning 0.0 would clear junk, returning 1.0 would flag it maximally, and
+ * both are fabrications. The caller must reject the submission.
+ */
+export class NoAnalysableContentError extends Error {
+  constructor() {
+    super("Both the rule engine and the semantic layer abstained: the submission contains no analysable content.");
+    this.name = "NoAnalysableContentError";
+  }
+}
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
 const ACTIONS: Record<RiskLevel, string> = {
   Low: "Content cleared. Informational summary of the analysis performed is provided below.",
   Medium: "Content flagged. Exercise caution and review the detected indicators before engaging.",
@@ -108,25 +124,39 @@ const f3 = (n: number) => n.toFixed(3);
 /**
  * Fuse the rule-based score and the AI score into a single threat assessment.
  *
+ * There are three abstention states, and each layer abstains only when it has
+ * nothing to read — neither is ever forced to invent a signal:
+ *
+ *   R = null, A present  ->  rule engine abstained     ->  H = A
+ *   R present, A = null  ->  semantic layer abstained  ->  H = R
+ *   R = null, A = null   ->  nothing to fuse           ->  throws
+ *
  * @param R  Rule-based score in [0, 1], or null if the rule engine abstained
  *           (no structural indicator applied to this submission).
- * @param A  AI confidence score in [0, 1].
+ * @param A  AI confidence score in [0, 1], or null if the semantic layer
+ *           abstained (the submission carried no analysable language, e.g. a
+ *           bare link). A = null is NOT the same as A = 0: zero means "the AI
+ *           read the words and judged them safe", null means "there were no
+ *           words to read". Treating the second as the first is the bug this
+ *           parameter exists to prevent.
  */
 export function fuse(
   R: number | null,
-  A: number,
+  A: number | null,
   weights: HTSAWeights = DEFAULT_WEIGHTS,
   thresholds: Thresholds = DEFAULT_THRESHOLDS,
 ): FusionResult {
   const w = normalise(weights);
-  const a = Math.min(1, Math.max(0, A));
 
-  // ABSTENTION. The rule engine found no applicable structural indicator, which
-  // happens for a plain text message containing no links and no headers. There
-  // is nothing to fuse. Deferring to the AI layer alone is the honest response;
-  // substituting an invented R would corrupt the score with a fabricated signal.
+  // BOTH abstained. Invalid input. Refuse rather than fabricate a verdict.
+  if (R === null && A === null) {
+    throw new NoAnalysableContentError();
+  }
+
+  // RULE ABSTENTION. No structural indicator applied (a plain text message with
+  // no links and no headers). Defer to the AI layer alone.
   if (R === null) {
-    const H = a;
+    const H = clamp01(A as number);
     const classification = classify(H, thresholds);
     return {
       H,
@@ -137,10 +167,33 @@ export function fuse(
         `layer abstained. The assessment rests on content analysis alone.\n` +
         `H = A = ${f3(H)}`,
       ruleAbstained: true,
+      aiAbstained: false,
     };
   }
 
-  const r = Math.min(1, Math.max(0, R));
+  // SEMANTIC ABSTENTION. The submission carried no analysable language (a bare
+  // link, pasted alone). The mirror of rule abstention: defer to the rule engine
+  // rather than let A = 0 be misread as "assessed safe" and suppress a real
+  // structural threat. This is what lets a bare typosquat URL reach a real
+  // verdict instead of being cleared to Low.
+  if (A === null) {
+    const H = clamp01(R);
+    const classification = classify(H, thresholds);
+    return {
+      H,
+      classification,
+      action: ACTIONS[classification],
+      workings:
+        `The content contained no analysable language, so the semantic layer ` +
+        `abstained. The verdict rests on structural analysis alone.\n` +
+        `H = R = ${f3(H)}`,
+      ruleAbstained: false,
+      aiAbstained: true,
+    };
+  }
+
+  const r = clamp01(R);
+  const a = clamp01(A);
   const H = w.alpha * r + w.beta * a + w.gamma * r * a;
   const classification = classify(H, thresholds);
 
@@ -151,7 +204,7 @@ export function fuse(
     `H = ${f3(w.alpha * r)} + ${f3(w.beta * a)} + ${f3(w.gamma * r * a)}\n` +
     `H = ${f3(H)}`;
 
-  return { H, classification, action: ACTIONS[classification], workings, ruleAbstained: false };
+  return { H, classification, action: ACTIONS[classification], workings, ruleAbstained: false, aiAbstained: false };
 }
 
 /**
