@@ -235,8 +235,27 @@ function isVerbatimSpan(span: string, text: string): boolean {
   return norm(text).includes(norm(span));
 }
 
-/** Turn the raw model JSON into an AIResult, dropping (and logging) any pattern that fails validation. */
-export function parseAIResponse(rawJson: string, submittedText: string): AIResult {
+/** A pattern the model returned that the guard rejected, kept for diagnostics. */
+export interface DroppedPattern {
+  id: unknown;
+  evidence: unknown;
+  reason: "unknown_id" | "not_verbatim";
+}
+
+/** The parsed result plus the patterns the guard dropped. */
+export interface AIParse {
+  result: AIResult;
+  dropped: DroppedPattern[];
+}
+
+/**
+ * Turn the raw model JSON into an AIResult, dropping (and recording) any pattern
+ * that fails validation. The dropped list is not decorative: a model that
+ * routinely paraphrases its evidence spans would have its patterns silently
+ * stripped here, depressing A across a whole corpus. Surfacing the drop count
+ * makes that visible instead of invisible.
+ */
+export function parseAIResponseDetailed(rawJson: string, submittedText: string): AIParse {
   const data = JSON.parse(rawJson) as {
     confidence?: unknown;
     patterns?: Array<{ id?: unknown; evidence?: unknown }>;
@@ -247,21 +266,29 @@ export function parseAIResponse(rawJson: string, submittedText: string): AIResul
   const explanation = typeof data.explanation === "string" ? data.explanation : "";
 
   const patterns: DetectedPattern[] = [];
+  const dropped: DroppedPattern[] = [];
   for (const p of data.patterns ?? []) {
     const id = p?.id as PatternId;
     if (!PATTERN_LABELS[id]) {
       console.warn(`[ai] dropping pattern with unknown id: ${JSON.stringify(p?.id)}`);
+      dropped.push({ id: p?.id, evidence: p?.evidence, reason: "unknown_id" });
       continue;
     }
     const evidence = typeof p?.evidence === "string" ? p.evidence : "";
     if (!isVerbatimSpan(evidence, submittedText)) {
       console.warn(`[ai] dropping ${id}: evidence not found verbatim in submission: ${JSON.stringify(evidence)}`);
+      dropped.push({ id, evidence: p?.evidence, reason: "not_verbatim" });
       continue;
     }
     patterns.push({ id, label: PATTERN_LABELS[id], evidence });
   }
 
-  return { A, patterns, explanation };
+  return { result: { A, patterns, explanation }, dropped };
+}
+
+/** Convenience wrapper returning only the AIResult (the deployed path). */
+export function parseAIResponse(rawJson: string, submittedText: string): AIResult {
+  return parseAIResponseDetailed(rawJson, submittedText).result;
 }
 
 // ---------------------------------------------------------------------------
@@ -274,20 +301,20 @@ export function cacheKey(redactedText: string): string {
   return createHash("sha256").update(redactedText, "utf8").digest("hex");
 }
 
-function readCache(key: string): AIResult | null {
+function readCache(key: string): AIParse | null {
   try {
     const file = join(CACHE_DIR, `${key}.json`);
     if (!existsSync(file)) return null;
-    return JSON.parse(readFileSync(file, "utf8")) as AIResult;
+    return JSON.parse(readFileSync(file, "utf8")) as AIParse;
   } catch {
     return null;
   }
 }
 
-function writeCache(key: string, result: AIResult): void {
+function writeCache(key: string, parse: AIParse): void {
   try {
     mkdirSync(CACHE_DIR, { recursive: true });
-    writeFileSync(join(CACHE_DIR, `${key}.json`), JSON.stringify(result), "utf8");
+    writeFileSync(join(CACHE_DIR, `${key}.json`), JSON.stringify(parse), "utf8");
   } catch {
     // A cache write failure must never fail an analysis.
   }
@@ -303,20 +330,26 @@ function requireEnv(name: string): string {
   return v;
 }
 
+/** analyzeText plus diagnostics: the dropped patterns and whether this was a cache hit. */
+export interface AIAnalysis extends AIParse {
+  cached: boolean;
+}
+
 /**
- * Analyse the LANGUAGE of a submission. The argument is the redacted text and
- * nothing else — no Features, no URLs, no structural facts.
+ * Analyse the LANGUAGE of a submission, returning the result AND the guard's
+ * dropped patterns. The argument is the redacted text and nothing else — no
+ * Features, no URLs, no structural facts.
  *
  * Throws on any API/parse failure. The orchestration layer (the analyze route)
  * catches that and degrades to A = R with aiAvailable: false; this function does
  * not swallow errors, so the caller can tell a real answer from a fallback.
  */
-export async function analyzeText(redactedText: string): Promise<AIResult> {
+export async function analyzeTextDetailed(redactedText: string): Promise<AIAnalysis> {
   const text = truncateHead(redactedText); // defensive; preprocess already truncates
   const key = cacheKey(text);
 
   const cached = readCache(key);
-  if (cached) return cached;
+  if (cached) return { ...cached, cached: true };
 
   const apiKey = requireEnv("GEMINI_API_KEY");
   const model = requireEnv("GEMINI_MODEL"); // never hardcode the model string
@@ -336,7 +369,12 @@ export async function analyzeText(redactedText: string): Promise<AIResult> {
   const out = response.text;
   if (!out) throw new Error("Gemini returned an empty response");
 
-  const result = parseAIResponse(out, text);
-  writeCache(key, result);
-  return result;
+  const parsed = parseAIResponseDetailed(out, text);
+  writeCache(key, parsed);
+  return { ...parsed, cached: false };
+}
+
+/** The deployed path: the AIResult alone. */
+export async function analyzeText(redactedText: string): Promise<AIResult> {
+  return (await analyzeTextDetailed(redactedText)).result;
 }
