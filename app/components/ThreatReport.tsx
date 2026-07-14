@@ -1,13 +1,39 @@
-import type { AnalysisResult, RiskLevel } from "@/core/types";
+"use client";
 
-const riskClass: Record<RiskLevel, string> = {
-  Low: "risk-low",
-  Medium: "risk-medium",
-  High: "risk-high",
-  Critical: "risk-critical",
-};
+import { Ruler, Brain, type LucideIcon } from "lucide-react";
+import type { AnalysisResult } from "@/core/types";
+import Gauge from "./Gauge";
 
-const fmt = (n: number | null) => (n === null ? "—" : n.toFixed(3));
+function riskVar(v: number): string {
+  if (v >= 0.8) return "var(--red)";
+  if (v >= 0.6) return "var(--orange)";
+  if (v >= 0.3) return "var(--amber)";
+  return "var(--green)";
+}
+const riskClass = (v: number) => (v >= 0.8 ? "risk-critical" : v >= 0.6 ? "risk-high" : v >= 0.3 ? "risk-medium" : "risk-low");
+const fmtTime = (ms: number) => (ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`);
+
+/** A component-score metric tile (R or A). */
+function Tile({ label, value, caption, icon: Icon }: { label: string; value: number | null; caption: string; icon: LucideIcon }) {
+  return (
+    <div className="tile">
+      <div className="tchip">
+        <Icon size={17} strokeWidth={1.5} />
+      </div>
+      <div className="tlabel">{label}</div>
+      {value === null ? (
+        <div className="tval mono" style={{ color: "var(--text-3)", fontSize: 20 }}>
+          abstained
+        </div>
+      ) : (
+        <div className="tval mono" style={{ color: riskVar(value) }}>
+          {value.toFixed(3)}
+        </div>
+      )}
+      <div className="tcap">{caption}</div>
+    </div>
+  );
+}
 
 export default function ThreatReport({ result }: { result: AnalysisResult }) {
   const {
@@ -21,119 +47,128 @@ export default function ThreatReport({ result }: { result: AnalysisResult }) {
     patterns,
     explanation,
     aiAvailable,
-    contentType,
     timings,
     weights,
   } = result;
 
+  const equationLines = workings.split("\n");
+  const bothPresent = ruleScore !== null && aiScore !== null;
+  const interaction = bothPresent ? weights.gamma * ruleScore! * aiScore! : 0;
+  const annoLeft = Math.min(88, Math.max(12, hybridScore * 100));
+
   return (
-    <div>
-      {/* Degradation notice: the AI service failed and we fell back to rule-only. */}
+    <div className="report">
       {!aiAvailable && (
         <div className="notice">
-          AI content analysis was unavailable, so this verdict rests on the structural
-          rule-based layer alone (A was set equal to R). Treat it as provisional.
+          AI content analysis was unavailable — this verdict rests on the rule-based layer alone (A set equal to R). Provisional.
         </div>
       )}
 
-      {/* 1. VERDICT */}
-      <div className={`verdict ${riskClass[classification]}`}>
-        <div className="level">{classification} Risk</div>
-        <div className="action">{action}</div>
-        <div className="meta">
-          Submission type: {contentType}
-          {ruleScore === null && " · rule engine abstained"}
-          {aiScore === null && " · semantic layer abstained"}
+      {/* 1. VERDICT — hero panel with the glow and the arc gauge */}
+      <div className="block hero">
+        <div className="hero-inner">
+          <Gauge H={hybridScore} classification={classification} />
+          <div className="hero-action">
+            <div className={`klass-line ${riskClass(hybridScore)}`}>Recommended action</div>
+            <div className="act">{action}</div>
+          </div>
         </div>
       </div>
 
-      {/* 2. SCORE DECOMPOSITION — the most important block. Real numbers, verbatim. */}
-      <div className="card">
-        <h2>Score decomposition</h2>
-        <div className="scores">
-          <div className="score-tile">
-            <div className="label">R · rules</div>
-            <div className="value">{fmt(ruleScore)}</div>
-            <div className="sub">{ruleScore === null ? "abstained" : "structural"}</div>
-          </div>
-          <div className="score-tile">
-            <div className="label">A · ai</div>
-            <div className="value">{fmt(aiScore)}</div>
-            <div className="sub">{aiScore === null ? "abstained" : "semantic"}</div>
-          </div>
-          <div className="score-tile">
-            <div className="label">H · hybrid</div>
-            <div className="value">{hybridScore.toFixed(3)}</div>
-            <div className="sub">fused verdict</div>
+      {/* 2. SCORE DECOMPOSITION */}
+      <div className="block">
+        <div className="block-title">Score decomposition</div>
+        <div className="tiles">
+          <Tile label="R · rule" value={ruleScore} caption="structural" icon={Ruler} />
+          <Tile label="A · ai" value={aiScore} caption="semantic" icon={Brain} />
+        </div>
+
+        <div className="fusion">
+          <div className="fusion-track">
+            {bothPresent && (
+              <div className="anno mono" style={{ left: `${annoLeft}%` }}>
+                interaction γRA {interaction >= 0 ? "+" : ""}
+                {interaction.toFixed(3)}
+              </div>
+            )}
+            <div className="fusion-fill" style={{ width: `${hybridScore * 100}%`, background: riskVar(hybridScore) }} />
           </div>
         </div>
-        <div className="workings">{workings}</div>
-        <div className="timings">
-          weights α={weights.alpha} β={weights.beta} γ={weights.gamma} · timings rules {timings.rules}ms · ai{" "}
-          {timings.ai}ms · total {timings.total}ms
+
+        <div className="equation">
+          {equationLines.map((ln, i) => (
+            <div
+              key={i}
+              className={i === equationLines.length - 1 ? "result" : undefined}
+              style={i === equationLines.length - 1 ? { color: riskVar(hybridScore) } : undefined}
+            >
+              {ln}
+            </div>
+          ))}
+        </div>
+
+        {ruleScore === null && <div className="abstain-note">Rules abstained: no structural indicators applied. H = A.</div>}
+        {aiScore === null && <div className="abstain-note">AI abstained: no analysable language. H = R.</div>}
+
+        <div className="decomp-foot">
+          <span className="mono">
+            weights α={weights.alpha} β={weights.beta} γ={weights.gamma}
+          </span>
         </div>
       </div>
 
-      {/* 3. INDICATOR TABLE — all nine, inapplicable ones greyed with struck weight. */}
-      <div className="card">
-        <h2>Rule indicators</h2>
-        <table className="indicator-table">
-          <thead>
-            <tr>
-              <th>Indicator</th>
-              <th>Result</th>
-              <th className="weight">Weight</th>
-            </tr>
-          </thead>
-          <tbody>
-            {indicators.map((i) => {
-              const state = !i.applicable ? "na" : i.passed ? "pass" : "fail";
-              return (
-                <tr key={i.id} className={state === "na" ? "row-na" : ""}>
-                  <td>
-                    {i.label}
-                    <div className="detail">{i.detail}</div>
-                  </td>
-                  <td>
-                    <span className={`tag tag-${state}`}>
-                      {state === "na" ? "N/A" : state === "pass" ? "Pass" : "Fail"}
-                    </span>
-                  </td>
-                  <td className="weight">{i.weight.toFixed(2)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* 3. INDICATORS */}
+      <div className="block">
+        <div className="block-title">Rule indicators</div>
+        {indicators.map((i) => {
+          const state = !i.applicable ? "na" : i.passed ? "pass" : "fail";
+          return (
+            <div className={`ind ${state === "na" ? "na" : ""}`} key={i.id}>
+              <div className={`pip pip-${state}`} />
+              <div>
+                <div className="name">
+                  {i.label}
+                  {state === "na" && <span className="na-tag">n/a</span>}
+                </div>
+                <div className="detail">{i.detail}</div>
+              </div>
+              <div className="wt mono">{i.weight.toFixed(2)}</div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* 4. DETECTED PATTERNS — each with its verbatim evidence span. */}
-      <div className="card">
-        <h2>Detected manipulation patterns</h2>
+      {/* 4. DETECTED PATTERNS */}
+      <div className="block">
+        <div className="block-title">Detected manipulation patterns</div>
         {patterns.length === 0 ? (
           <div className="empty">
             {aiScore === null
-              ? "The semantic layer abstained — there was no analysable language to inspect."
-              : "No manipulation patterns were detected in the language."}
+              ? "The semantic layer abstained — no analysable language to inspect."
+              : "No manipulation patterns detected in the language."}
           </div>
         ) : (
           patterns.map((p, idx) => (
             <div className="pattern" key={`${p.id}-${idx}`}>
-              <div className="name">{p.label}</div>
-              <div className="evidence">“{p.evidence}”</div>
+              <div className="plabel tracking-label">{p.label}</div>
+              <div className="quote">{p.evidence}</div>
             </div>
           ))
         )}
       </div>
 
       {/* 5. EXPLANATION */}
-      <div className="card">
-        <h2>Explanation</h2>
+      <div className="block">
+        <div className="block-title">Explanation</div>
         {explanation ? (
           <p className="explanation">{explanation}</p>
         ) : (
           <div className="empty">No semantic explanation (the AI layer did not run on this submission).</div>
         )}
+      </div>
+
+      <div className="report-foot">
+        rules {fmtTime(timings.rules)} · ai {fmtTime(timings.ai)} · total {fmtTime(timings.total)}
       </div>
     </div>
   );
