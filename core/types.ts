@@ -6,7 +6,7 @@
  * Change it here and everything downstream follows.
  */
 
-export type ContentType = "email" | "url" | "text";
+export type ContentType = "email" | "url" | "text" | "image";
 
 export type RiskLevel = "Low" | "Medium" | "High" | "Critical";
 
@@ -209,6 +209,12 @@ export interface AnalysisResult {
   explanation: string;
   /** false = Gemini failed and the system degraded to rule-only (NFR05). */
   aiAvailable: boolean;
+  /**
+   * For image submissions, the verbatim text the transcriber read out of the
+   * image(s) — the input that entered preprocess. null for pasted submissions.
+   * Rendered in the report as the audit trail: if this is wrong, every score is.
+   */
+  transcription: string | null;
   weights: HTSAWeights;
   timings: { rules: number; ai: number; total: number };
   createdAt: string;

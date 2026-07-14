@@ -1,7 +1,8 @@
 {
   "2bfa452b7e814f745052f9488f36389bce5effb2a59cd55059d166f746ff3ca5": {
-    "id": 1783955397714,
+    "id": 1784039923299,
     "contentType": "email",
+    "transcription": null,
     "ruleScore": 0.72,
     "aiScore": 0.96,
     "hybridScore": 0.8102399999999998,
@@ -117,15 +118,16 @@
       "gamma": 0.2
     },
     "timings": {
-      "rules": 347,
-      "ai": 2,
-      "total": 349
+      "rules": 396,
+      "ai": 1,
+      "total": 397
     },
-    "createdAt": "2026-07-13T15:09:57.714Z"
+    "createdAt": "2026-07-14T14:38:43.299Z"
   },
   "4cb10c6fe9ccc1b00b4d0490002aa29020349df2835c8c9c952d55e4ae4ee6ff": {
-    "id": 1783955402254,
+    "id": 1784039924610,
     "contentType": "email",
+    "transcription": null,
     "ruleScore": 0,
     "aiScore": 0.05,
     "hybridScore": 0.020000000000000004,
@@ -139,7 +141,7 @@
         "weight": 0.15,
         "applicable": true,
         "passed": true,
-        "detail": "All domains are established (oldest link is 6851 days old)."
+        "detail": "All domains are established (oldest link is 6852 days old)."
       },
       {
         "id": "ssl_certificate",
@@ -215,15 +217,16 @@
       "gamma": 0.2
     },
     "timings": {
-      "rules": 1000,
-      "ai": 3538,
-      "total": 4538
+      "rules": 1308,
+      "ai": 1,
+      "total": 1310
     },
-    "createdAt": "2026-07-13T15:10:02.254Z"
+    "createdAt": "2026-07-14T14:38:44.610Z"
   },
   "25d9c4983dcd619c484302a8e8b1b2f3ca8b3333b56d234cd2718ef24bbb1b72": {
-    "id": 1783955402530,
+    "id": 1784039924977,
     "contentType": "url",
+    "transcription": null,
     "ruleScore": 0.588235294117647,
     "aiScore": null,
     "hybridScore": 0.588235294117647,
@@ -313,15 +316,16 @@
       "gamma": 0.2
     },
     "timings": {
-      "rules": 276,
+      "rules": 366,
       "ai": 0,
-      "total": 276
+      "total": 366
     },
-    "createdAt": "2026-07-13T15:10:02.530Z"
+    "createdAt": "2026-07-14T14:38:44.977Z"
   },
   "05046f26c83e8c88b3ddab2eab63d0d16224ac1e564535fc75cdceee47a0938d": {
-    "id": 1783955403385,
+    "id": 1784039925821,
     "contentType": "url",
+    "transcription": null,
     "ruleScore": 0,
     "aiScore": null,
     "hybridScore": 0,
@@ -335,7 +339,7 @@
         "weight": 0.15,
         "applicable": true,
         "passed": true,
-        "detail": "All domains are established (oldest link is 10528 days old)."
+        "detail": "All domains are established (oldest link is 10529 days old)."
       },
       {
         "id": "ssl_certificate",
@@ -411,15 +415,16 @@
       "gamma": 0.2
     },
     "timings": {
-      "rules": 854,
+      "rules": 844,
       "ai": 0,
-      "total": 854
+      "total": 844
     },
-    "createdAt": "2026-07-13T15:10:03.385Z"
+    "createdAt": "2026-07-14T14:38:45.821Z"
   },
   "4d8696feb127a89b6b2a31dba1b42115c13c026a3cbfa28cad5f68f05ffa7bbc": {
-    "id": 1783955404539,
+    "id": 1784039927285,
     "contentType": "email",
+    "transcription": null,
     "ruleScore": 0.17999999999999994,
     "aiScore": 0.4,
     "hybridScore": 0.2464,
@@ -433,7 +438,7 @@
         "weight": 0.15,
         "applicable": true,
         "passed": true,
-        "detail": "All domains are established (oldest link is 6630 days old)."
+        "detail": "All domains are established (oldest link is 6631 days old)."
       },
       {
         "id": "ssl_certificate",
@@ -520,10 +525,10 @@
       "gamma": 0.2
     },
     "timings": {
-      "rules": 1152,
+      "rules": 1463,
       "ai": 1,
-      "total": 1154
+      "total": 1464
     },
-    "createdAt": "2026-07-13T15:10:04.539Z"
+    "createdAt": "2026-07-14T14:38:47.285Z"
   }
 }

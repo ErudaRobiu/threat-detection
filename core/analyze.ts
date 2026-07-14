@@ -50,6 +50,15 @@ export interface AnalyzeOptions {
   /** HTSA weights (the settings page passes these to demonstrate the ablation). */
   weights?: HTSAWeights;
   thresholds?: Thresholds;
+  /**
+   * Set when the raw text came from transcribing image(s). The modality is
+   * labelled "image", but preprocess still auto-detects the underlying email /
+   * url / text from the transcribed text so the correct indicators apply. This
+   * is the transcript that entered the pipeline; it is echoed in the result as
+   * the audit trail. The transcriber runs BEFORE analyze — this is just carrying
+   * its output through, never re-reading the image.
+   */
+  transcription?: string | null;
 }
 
 const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
@@ -106,9 +115,12 @@ export async function analyze(raw: string, opts: AnalyzeOptions = {}): Promise<A
   const fusion = fuse(rule.R, aiScore, weights, thresholds);
   const totalMs = now() - t0;
 
+  const fromImage = opts.transcription != null;
+
   return {
     id: Date.now(),
-    contentType: features.contentType,
+    contentType: fromImage ? "image" : features.contentType,
+    transcription: opts.transcription ?? null,
     ruleScore: rule.R,
     aiScore,
     hybridScore: fusion.H,

@@ -13,6 +13,28 @@ function riskVar(v: number): string {
 const riskClass = (v: number) => (v >= 0.8 ? "risk-critical" : v >= 0.6 ? "risk-high" : v >= 0.3 ? "risk-medium" : "risk-low");
 const fmtTime = (ms: number) => (ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`);
 
+const URL_RE = /((?:https?:\/\/|www\.)[^\s<>()]+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s<>()]*)?)/gi;
+
+/** Highlight URLs/domains in the transcription so the user can audit what we read. */
+function highlightUrls(text: string) {
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  URL_RE.lastIndex = 0;
+  while ((m = URL_RE.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push(
+      <mark className="url-hl" key={key++}>
+        {m[0]}
+      </mark>,
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 /** A component-score metric tile (R or A). */
 function Tile({ label, value, caption, icon: Icon }: { label: string; value: number | null; caption: string; icon: LucideIcon }) {
   return (
@@ -49,6 +71,7 @@ export default function ThreatReport({ result }: { result: AnalysisResult }) {
     aiAvailable,
     timings,
     weights,
+    transcription,
   } = result;
 
   const equationLines = workings.split("\n");
@@ -74,6 +97,16 @@ export default function ThreatReport({ result }: { result: AnalysisResult }) {
           </div>
         </div>
       </div>
+
+      {/* Audit trail — the transcription that entered the pipeline (image submissions). */}
+      {transcription != null && (
+        <details className="block extracted">
+          <summary>
+            Extracted text <span className="ex-note">— what we read from the image</span>
+          </summary>
+          <pre className="ex-body mono">{highlightUrls(transcription)}</pre>
+        </details>
+      )}
 
       {/* 2. SCORE DECOMPOSITION */}
       <div className="block">
