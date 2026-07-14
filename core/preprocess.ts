@@ -37,6 +37,7 @@ import { simpleParser, type ParsedMail } from "mailparser";
 import { parse } from "tldts";
 import { firstResult, whoisDomain } from "whoiser";
 import tls from "node:tls";
+import net from "node:net";
 
 import type { ContentType, Features, UrlFacts } from "./types";
 import { detectBrandImpersonation, SHORTENER_DOMAINS } from "./rules";
@@ -254,28 +255,42 @@ function checkTls(hostname: string): Promise<boolean | null> {
       resolve(v);
     };
 
-    const socket = tls.connect(
-      { host: hostname, port: 443, servername: hostname, timeout: TLS_TIMEOUT_MS, rejectUnauthorized: false },
-      () => {
-        const cert = socket.getPeerCertificate();
-        let valid = socket.authorized;
-        if (!cert || Object.keys(cert).length === 0) {
-          valid = false;
-        } else {
-          const now = Date.now();
-          const from = Date.parse(cert.valid_from);
-          const to = Date.parse(cert.valid_to);
-          if (Number.isNaN(from) || Number.isNaN(to) || now < from || now > to) valid = false;
-        }
-        socket.end();
-        done(valid);
-      },
-    );
-    socket.on("error", () => done(null)); // unreachable / handshake could not complete
-    socket.on("timeout", () => {
-      socket.destroy();
+    try {
+      // SNI (servername) is only valid for hostnames; setting it to a raw IP
+      // throws ERR_INVALID_ARG_VALUE synchronously. Phishing hosts are often bare
+      // IPs, so omit servername for them. The try/catch turns any synchronous
+      // throw into "unreachable" (null) rather than crashing the analysis.
+      const socket = tls.connect(
+        {
+          host: hostname,
+          port: 443,
+          servername: net.isIP(hostname) ? undefined : hostname,
+          timeout: TLS_TIMEOUT_MS,
+          rejectUnauthorized: false,
+        },
+        () => {
+          const cert = socket.getPeerCertificate();
+          let valid = socket.authorized;
+          if (!cert || Object.keys(cert).length === 0) {
+            valid = false;
+          } else {
+            const now = Date.now();
+            const from = Date.parse(cert.valid_from);
+            const to = Date.parse(cert.valid_to);
+            if (Number.isNaN(from) || Number.isNaN(to) || now < from || now > to) valid = false;
+          }
+          socket.end();
+          done(valid);
+        },
+      );
+      socket.on("error", () => done(null)); // unreachable / handshake could not complete
+      socket.on("timeout", () => {
+        socket.destroy();
+        done(null);
+      });
+    } catch {
       done(null);
-    });
+    }
   });
 }
 

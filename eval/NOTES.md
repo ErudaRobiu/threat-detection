@@ -1,5 +1,36 @@
 # Evaluation notes (read before building the Phase 5 harness)
 
+## Corpora (for the Chapter 3 revision — source, URL, date, size, balance)
+
+All obtained **2026-07-14**. Raw data lives in `eval/data/` (gitignored;
+reproduce with `eval/fetch_corpora.sh`). Totals: **1,000 URLs (500/500)** and
+**600 emails (300/300)** = 1,600 items.
+
+| Class | Source | URL | Obtained from | Sample |
+|---|---|---|---|---|
+| Legitimate URLs | **Tranco** research ranking | https://tranco-list.eu/ (`top-1m.csv.zip`) | full list | top **500** ranked domains → `https://` |
+| Phishing URLs | **Phishing.Database** (mitchellkrogza) | https://github.com/mitchellkrogza/Phishing.Database (`phishing-links-ACTIVE.txt`) | 161,929 active URLs | random **500** (seed 42) |
+| Phishing emails | **Nazario** phishing corpus | https://monkey.org/~jose/phishing/ (`phishing3.mbox`) | 2,279 messages | **300** (seeded) |
+| Legitimate emails | **SpamAssassin** public corpus, `easy_ham` | https://spamassassin.apache.org/old/publiccorpus/ (`20030228_easy_ham.tar.bz2` + `_2`) | 3,900 messages | **300** (seeded) |
+
+**Two substitutions, each defensible and each one sentence in Chapter 3:**
+
+1. **PhishTank → Phishing.Database.** PhishTank's `online-valid.csv` feed returned
+   an HTTP-200 rate-limit page ("you have exceeded the request rate limit")
+   without a registered API key, and registration has been intermittently closed.
+   Rather than block on a registration email, the phishing-URL class was drawn
+   from the Phishing.Database aggregated feed, which itself ingests PhishTank and
+   OpenPhish and is freely downloadable and citable.
+
+2. **Enron → SpamAssassin easy_ham.** The CMU Enron tarball (1.7 GB) downloaded at
+   ~215 KB/s here (≈2 hours), exceeding the 20-minute sourcing time-box. The
+   SpamAssassin `easy_ham` corpus is a standard, citable legitimate-email dataset
+   and was used for the legitimate-email class instead.
+
+Class balance is exact: URLs 500/500, emails 300/300.
+
+---
+
 ## Semantic abstention changes what "AI-only" (Condition 2) can be measured on
 
 The AI layer abstains (returns A = null) when a submission carries no analysable

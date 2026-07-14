@@ -34,6 +34,11 @@ yarn-error.log*
 # gemini response cache (SHA-256 keyed; regenerated on demand)
 /.cache/
 
+# evaluation raw corpora (reproduce with eval/fetch_corpora.sh) and cache
+/eval/data/
+/eval/cache.json
+/eval/cache.json.tmp
+
 # vercel
 .vercel
 

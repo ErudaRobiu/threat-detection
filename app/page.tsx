@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent, type ClipboardEvent } from "react";
 import { UploadCloud, Loader2, ImagePlus, X } from "lucide-react";
 import type { AnalysisResult, ContentType } from "@/core/types";
 import { DEMO_INPUTS } from "@/core/demo-inputs";
@@ -118,6 +118,18 @@ export default function Home() {
     if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
   }
 
+  // Paste a screenshot straight from the clipboard (Cmd/Ctrl+V) into the drop zone.
+  function onPaste(e: ClipboardEvent) {
+    const files = Array.from(e.clipboardData.items)
+      .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
+      .map((it) => it.getAsFile())
+      .filter((f): f is File => f !== null);
+    if (files.length) {
+      e.preventDefault();
+      addFiles(files);
+    }
+  }
+
   const canSubmit = !loading && (images.length > 0 || content.trim().length > 0);
 
   return (
@@ -144,6 +156,7 @@ export default function Home() {
             }}
             onDragLeave={() => setHot(false)}
             onDrop={onDrop}
+            onPaste={onPaste}
           >
             <svg className="dz-border">
               <rect />
