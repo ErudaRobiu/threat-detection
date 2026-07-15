@@ -25,6 +25,7 @@ Usage:
 """
 
 import argparse
+import csv
 import glob
 import hashlib
 import json
@@ -172,66 +173,107 @@ def fuse_H(R, A, gamma):
     return a * R + b * A + gamma * R * A
 
 
-def metrics(rows, predict, applies=lambda r: True):
-    tp = fp = tn = fn = 0
-    for r in rows:
-        if r.get("error") or not applies(r):
-            continue
-        p = predict(r)
-        if p is None:
-            continue
-        y = r["label"]
-        if p and y:
-            tp += 1
-        elif p and not y:
-            fp += 1
-        elif not p and not y:
-            tn += 1
-        else:
-            fn += 1
-    n = tp + fp + tn + fn
-    acc = (tp + tn) / n if n else 0.0
+def binary(pairs, t):
+    """Confusion + rates for scored (score, label) pairs thresholded at t."""
+    p = [(s, y) for s, y in pairs if s is not None]
+    tp = sum(1 for s, y in p if s >= t and y == 1)
+    fp = sum(1 for s, y in p if s >= t and y == 0)
+    P = sum(1 for _, y in p if y == 1)
+    N = len(p) - P
+    fn, tn = P - tp, N - fp
+    n = len(p)
     prec = tp / (tp + fp) if (tp + fp) else 0.0
-    rec = tp / (tp + fn) if (tp + fn) else 0.0
+    rec = tp / P if P else 0.0
     f1 = 2 * prec * rec / (prec + rec) if (prec + rec) else 0.0
-    return {"n": n, "acc": acc, "prec": prec, "rec": rec, "f1": f1,
+    return {"n": n, "acc": (tp + tn) / n if n else 0.0, "prec": prec, "rec": rec, "f1": f1,
+            "fpr": fp / N if N else 0.0, "fnr": fn / P if P else 0.0,
             "tp": tp, "fp": fp, "tn": tn, "fn": fn}
 
 
+def auc(pairs):
+    """Rank-based ROC AUC (Mann-Whitney)."""
+    p = [(s, y) for s, y in pairs if s is not None]
+    pos = [s for s, y in p if y == 1]
+    neg = [s for s, y in p if y == 0]
+    if not pos or not neg:
+        return None
+    c = 0.0
+    for a in pos:
+        for b in neg:
+            c += 1.0 if a > b else (0.5 if a == b else 0.0)
+    return c / (len(pos) * len(neg))
+
+
+def sweep(pairs, step=0.01):
+    """(t, prec, rec, f1, fpr) across thresholds 0..1."""
+    rows, t = [], 0.0
+    while t <= 1.0 + 1e-9:
+        m = binary(pairs, t)
+        rows.append((round(t, 2), m["prec"], m["rec"], m["f1"], m["fpr"]))
+        t += step
+    return rows
+
+
 def report(rows):
-    def rule(r):
-        return r["R"] is not None and r["R"] >= THRESHOLD
-
-    def ai(r):
-        return r["A"] is not None and r["A"] >= THRESHOLD
-
-    def htsa(g):
-        def f(r):
-            h = fuse_H(r["R"], r["A"], g)
-            return h is not None and h >= THRESHOLD
-        return f
-
+    os.makedirs(os.path.join(HERE, "out"), exist_ok=True)
+    ok = [r for r in rows if not r.get("error")]
     is_email = lambda r: r["kind"] == "email"
-    is_defined_A = lambda r: r["A"] is not None
 
-    conditions = [
-        ("1  Rule only            (R>=0.3)", metrics(rows, rule)),
-        ("2  AI only  [email only](A>=0.3)", metrics(rows, ai, applies=lambda r: is_email(r) and is_defined_A(r))),
-        ("3  HTSA gamma=0 ablation(H>=0.3)", metrics(rows, htsa(0.0))),
-        ("4  HTSA gamma=0.2  real (H>=0.3)", metrics(rows, htsa(0.2))),
-    ]
-    hdr = f"{'condition':<34}{'n':>5}{'acc':>8}{'prec':>8}{'rec':>8}{'f1':>8}   confusion (tp fp tn fn)"
-    print("\n" + hdr)
-    print("-" * len(hdr))
-    for name, m in conditions:
-        print(f"{name:<34}{m['n']:>5}{m['acc']:>8.3f}{m['prec']:>8.3f}{m['rec']:>8.3f}{m['f1']:>8.3f}"
-              f"   {m['tp']} {m['fp']} {m['tn']} {m['fn']}")
+    conds = {
+        "1 rule       ": [(r["R"], r["label"]) for r in ok],
+        "2 ai [email] ": [(r["A"], r["label"]) for r in ok if is_email(r) and r["A"] is not None],
+        "3 HTSA gamma0": [(fuse_H(r["R"], r["A"], 0.0), r["label"]) for r in ok],
+        "4 HTSA gam0.2": [(fuse_H(r["R"], r["A"], 0.2), r["label"]) for r in ok],
+    }
 
-    # AI-abstention accounting — the reason Condition 2 is email-only.
-    url_rows = [r for r in rows if r["kind"] == "url" and not r.get("error")]
+    # --- Binary @0.3 with FP/FN rates and threshold-free AUC ---
+    print(f"\n{'condition':<14}{'n':>5}{'acc':>7}{'prec':>7}{'rec':>7}{'f1':>7}{'fpr':>7}{'fnr':>7}{'auc':>7}   (tp fp tn fn)")
+    print("-" * 92)
+    for name, pairs in conds.items():
+        m = binary(pairs, THRESHOLD)
+        a = auc(pairs)
+        astr = f"{a:>7.3f}" if a is not None else f"{'--':>7}"
+        print(f"{name:<14}{m['n']:>5}{m['acc']:>7.3f}{m['prec']:>7.3f}{m['rec']:>7.3f}{m['f1']:>7.3f}"
+              f"{m['fpr']:>7.3f}{m['fnr']:>7.3f}{astr}   {m['tp']} {m['fp']} {m['tn']} {m['fn']}")
+
+    # --- Threshold sweep: F1 at each condition's OWN optimal threshold ---
+    print("\nF1 at each condition's optimal threshold (full 0..1 sweep):")
+    sw = {}
+    for name, pairs in conds.items():
+        s = sweep(pairs)
+        sw[name] = s
+        best = max(s, key=lambda r: r[3])
+        print(f"  {name}: best F1 {best[3]:.3f} at t={best[0]:.2f}  (prec {best[1]:.3f}, rec {best[2]:.3f}, fpr {best[4]:.3f})")
+    # write gamma sweeps for plotting
+    with open(os.path.join(HERE, "out", "sweep.csv"), "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["t", "g0_prec", "g0_rec", "g0_f1", "g0_fpr", "g02_prec", "g02_rec", "g02_f1", "g02_fpr"])
+        for g0, g02 in zip(sw["3 HTSA gamma0"], sw["4 HTSA gam0.2"]):
+            w.writerow([g0[0], *g0[1:], *g02[1:]])
+
+    # --- Gate suppression and the flip zone (both from cache, no API calls) ---
+    both = [r for r in ok if r["R"] is not None and r["A"] is not None]
+    supp = [((r["R"] + r["A"]) / 2 - fuse_H(r["R"], r["A"], 0.2)) for r in both]
+    band = [r for r in both if 0.25 <= (r["R"] + r["A"]) / 2 <= 0.40]
+    print("\ngate suppression  mean(R,A) - H(gamma=0.2):")
+    print(f"  items with both R and A: {len(both)}")
+    print(f"  mean suppression: {sum(supp)/len(supp):.4f}" if supp else "  mean suppression: n/a")
+    print(f"  max  suppression: {max(supp):.4f}" if supp else "  max  suppression: n/a")
+    print(f"  flip-zone 0.25<=mean(R,A)<=0.40: {len(band)} items  "
+          f"(if empty, more data will NOT create a gate effect)")
+
+    # scatter data: |R-A| vs suppression, and per-item R/A/H
+    with open(os.path.join(HERE, "out", "scatter.csv"), "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["abs_R_minus_A", "suppression", "R", "A", "H", "label", "kind"])
+        for r in both:
+            s = (r["R"] + r["A"]) / 2 - fuse_H(r["R"], r["A"], 0.2)
+            w.writerow([abs(r["R"] - r["A"]), s, r["R"], r["A"], r["H"], r["label"], r["kind"]])
+
+    url_rows = [r for r in ok if r["kind"] == "url"]
     abstained = sum(1 for r in url_rows if r["A"] is None)
-    print(f"\nAI abstained on {abstained}/{len(url_rows)} URL items "
-          f"(Condition 2 is undefined for these; reported on emails only).")
+    print(f"\nAI abstained on {abstained}/{len(url_rows)} URL items (Condition 2 is email-only, by design).")
+    print(f"wrote eval/out/sweep.csv and eval/out/scatter.csv for charts.py")
 
 
 # --------------------------------------------------------------------------

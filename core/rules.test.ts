@@ -238,6 +238,41 @@ describe("brand impersonation detection", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Email authentication has THREE states, not two. Absent headers are
+// INAPPLICABLE (no check was ever performed), not FAILED — the same distinction
+// drawn for WHOIS. This stops a pre-DMARC legitimate email being penalised for
+// the non-existence of a protocol.
+// ---------------------------------------------------------------------------
+
+describe("email authentication applicability (three states)", () => {
+  const auth = (o: Partial<NonNullable<Features["email"]>>) =>
+    runRules(emailFeatures(o)).indicators.find((i) => i.id === "email_auth")!;
+
+  it("present + pass -> applicable, passed", () => {
+    const a = auth({ spf: "pass", dkim: "pass", dmarc: "pass" });
+    expect(a.applicable).toBe(true);
+    expect(a.passed).toBe(true);
+  });
+
+  it("present + fail -> applicable, failed", () => {
+    const a = auth({ spf: "fail", dkim: "none", dmarc: "fail" });
+    expect(a.applicable).toBe(true);
+    expect(a.passed).toBe(false);
+  });
+
+  it("absent entirely -> INAPPLICABLE, not failed (the pre-DMARC case)", () => {
+    const a = auth({ spf: null, dkim: null, dmarc: null });
+    expect(a.applicable).toBe(false);
+  });
+
+  it("a clean email with no auth headers scores R = 0 (email_auth excluded from the denominator)", () => {
+    // email_auth inapplicable -> R normalises over reply_to_mismatch + html_form,
+    // both of which pass -> R = 0, not 0.375.
+    expect(runRules(emailFeatures({ spf: null, dkim: null, dmarc: null })).R).toBeCloseTo(0, 9);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Sanity: the indicator weights sum to 1.000 across the full set (Table 3.5).
 // ---------------------------------------------------------------------------
 

@@ -365,24 +365,39 @@ export function runRules(f: Features): RuleResult {
 
   // -- 6. Email authentication (SPF / DKIM / DMARC) ------------------------
   // Passing requires SPF to pass AND at least one of DKIM or DMARC to pass.
-  // Absent headers are NOT a pass. An unsigned message is unverified.
+  //
+  // APPLICABILITY. If the message carries NO SPF/DKIM/DMARC result at all, no
+  // receiving infrastructure ever performed the check (e.g. a message predating
+  // DMARC), so the indicator is INAPPLICABLE — not failed. This mirrors the WHOIS
+  // rule exactly: the absence of a check that was never run is different from a
+  // check that ran and failed. Deny-by-default withholds the benefit of the doubt
+  // from an *unverified* sender; it does not punish an old message for the
+  // non-existence of a protocol. Headers PRESENT and failing still FAIL. The
+  // applicability normalisation then renormalises R over the indicators that
+  // remain, so a legitimate email is not penalised for missing headers.
   if (!hasEmailHeaders) {
     add("email_auth", false, false, "Not applicable: submission is not an email with headers.");
   } else {
     const e = f.email!;
-    const spfPass = e.spf === "pass";
-    const dkimPass = e.dkim === "pass";
-    const dmarcPass = e.dmarc === "pass";
-    const passed = spfPass && (dkimPass || dmarcPass);
-    const parts = [
-      `SPF: ${e.spf ?? "absent"}`,
-      `DKIM: ${e.dkim ?? "absent"}`,
-      `DMARC: ${e.dmarc ?? "absent"}`,
-    ].join(", ");
-    add("email_auth", true, passed,
-      passed
-        ? `Sender authentication verified (${parts}). The sending server is authorised for this domain.`
-        : `Sender authentication could not be verified (${parts}). The message cannot be proven to originate from the domain it claims.`);
+    const hasAuthResults = e.spf !== null || e.dkim !== null || e.dmarc !== null;
+    if (!hasAuthResults) {
+      add("email_auth", false, false,
+        "Not applicable: the message carries no SPF, DKIM, or DMARC result, so no sender-authentication check was ever performed on it.");
+    } else {
+      const spfPass = e.spf === "pass";
+      const dkimPass = e.dkim === "pass";
+      const dmarcPass = e.dmarc === "pass";
+      const passed = spfPass && (dkimPass || dmarcPass);
+      const parts = [
+        `SPF: ${e.spf ?? "absent"}`,
+        `DKIM: ${e.dkim ?? "absent"}`,
+        `DMARC: ${e.dmarc ?? "absent"}`,
+      ].join(", ");
+      add("email_auth", true, passed,
+        passed
+          ? `Sender authentication verified (${parts}). The sending server is authorised for this domain.`
+          : `Sender authentication could not be verified (${parts}). The message cannot be proven to originate from the domain it claims.`);
+    }
   }
 
   // -- 7. Reply-to mismatch ------------------------------------------------

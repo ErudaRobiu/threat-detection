@@ -31,6 +31,49 @@ Class balance is exact: URLs 500/500, emails 300/300.
 
 ---
 
+## Chapter 3 refinement: email_auth applicability (the DMARC artefact)
+
+On this corpus **0/3900 SpamAssassin ham** and **2/2138 Nazario phishing** emails
+carry any `Authentication-Results` / `Received-SPF` header (both predate wide
+DMARC deployment). Under the original rule, `email_auth` therefore *failed* on
+~100% of both classes: zero discriminative power, and a uniform −0.12 penalty to
+every legitimate email's earned weight.
+
+Fix (a refinement, not a reweight): `email_auth` is now **inapplicable** when a
+message carries no SPF/DKIM/DMARC result at all — the same three-state logic as
+WHOIS (present+pass → pass; present+fail → fail; absent → n/a). The applicability
+normalisation renormalises R over the indicators that remain. The fixed weight
+set the ablation depends on is untouched.
+
+## Findings from the 48-item smoke (real data, for Chapters 4/5)
+
+**The two failure modes are mirror images — this is the argument for fusion.**
+
+1. **Phishing on legitimate shared infrastructure defeats the rule layer.** Many
+   phishing URLs are hosted on `000webhostapp.com`, `*.github.io`, `square.site`,
+   etc. — established domains with valid TLS that are not brand typosquats — so
+   every structural indicator passes and **R ≈ 0**. The rule layer clears them;
+   only the AI (on a full email) or a human catches them. On bare URLs the AI
+   abstains, so these are a genuine hard case (Chapter 5 limitation).
+
+2. **Legitimate mail that fails structural checks produces rule-layer false
+   positives.** Text-only Nazario phishing with no URL and no auth headers also
+   scores **R = 0** and is caught only by **A ≈ 0.95** — the inverse: the rule
+   layer misses it, the semantic layer nails it.
+
+Each layer rescues the other's blind spot. Neither alone is sufficient; that is
+the case for the hybrid, and it fell out of real data rather than theory.
+
+**Honest caveat on the agreement gate (smoke, n=48).** γ=0 and γ=0.2 gave
+identical binary metrics AND identical best-F1 under a full threshold sweep
+(0.818 either way), and equal AUC (0.825). Mean gate suppression 0.044, max
+0.095; only **2/24** email items fell in the 0.25–0.40 flip zone. The gate
+demonstrably *suppresses* (mean 0.044) but did not change any classification on
+this sample. Whether it shows a measurable effect at 1,600 items is the open
+question the full run must answer — reported honestly either way.
+
+---
+
 ## Semantic abstention changes what "AI-only" (Condition 2) can be measured on
 
 The AI layer abstains (returns A = null) when a submission carries no analysable
