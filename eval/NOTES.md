@@ -31,6 +31,132 @@ Class balance is exact: URLs 500/500, emails 300/300.
 
 ---
 
+## Chapter 4 methodological finding: the URL corpus is trivially separable by a COLLECTION ARTEFACT (and the corpus fix)
+
+**This is a Chapter 4 finding in its own right, not a footnote.** A benchmark that
+separates on how the two classes were *collected* rather than on what distinguishes
+phishing is a benchmark that flatters every classifier trained on it.
+
+The legitimate URL class (Tranco) is **bare ranked registrable domains**
+(`https://google.com`); the phishing class (Phishing.Database) is **full captured
+URLs** (`https://budi01.grubwa.duckdns.org/tem/onedrive-4d1/p`). The two classes
+therefore differ in *shape* before any phishing signal is considered:
+
+### Table A — URL shape by class, as collected (goes in the report verbatim)
+
+| class | n | median URL len | median path len | mean subdomain depth | >3 depth | IP-host | shortener |
+|---|---|---|---|---|---|---|---|
+| legit | 500 | 19 | 0  | 0.00 | 0.0% | 0.0% | 0.8% |
+| phish | 500 | 74 | 30 | 0.62 | 1.6% | 4.4% | 0.0% |
+
+subdomain_depth histogram (full URL):
+- legit: `{0: 500}` — every legit URL is a bare domain, depth 0 by construction.
+- phish: `{0:268, 1:189, 2:22, 3:13, 4:3, 5:3, 6:1, 7:1}`.
+
+### Does the RF ride it? Yes, almost entirely. (Condition 5, three rows)
+
+`baseline.py`, RF, 1,000 URLs, 5-fold stratified CV, out-of-fold preds, seed 42:
+
+| row | RF input | acc | prec | rec | F1 | FPR | AUC | best-F1 |
+|---|---|---|---|---|---|---|---|---|
+| **5a** | all lexical features (ARTEFACT) | 0.993 | 0.998 | 0.988 | **0.993** | 0.002 | 0.999 | 0.994 |
+| **5b** | length/path features removed    | 0.967 | 0.979 | 0.954 | 0.967 | 0.020 | 0.986 | 0.968 |
+| **5c** | **domain-only (HEADLINE)**       | 0.714 | 0.743 | 0.654 | **0.696** | 0.226 | 0.767 | 0.727 |
+
+5a's top features are `path_len`, `url_len`, `num_slash` — it has learned *"long URL
+with a path ⇒ phishing"*, i.e. the collection artefact, not phishing. Strip every URL
+to its registrable domain (5c) and the RF falls to **F1 0.696 / AUC 0.767** — the
+honest baseline the hybrid is measured against. 5c's surviving signal is real but
+modest: `host_entropy`, `tld_len`, `digit_ratio`, `has_brand_token` — phishing domains
+are more random-looking, use odder TLDs and more digits. **The Condition-5 headline
+number is 5c (best-F1 0.727), not 0.99.** 5a/5b are the diagnostic trail.
+
+### Does the RULE ENGINE ride it? No — this was the real worry, and it is clean.
+
+Checked offline (`eval/confound_check.py`, mirrors `rules.ts`/`preprocess.ts` exactly)
+for the three indicators that read URL shape:
+
+- `subdomain_depth` (>3 fails): legit 0.0% vs phish **1.6%** — a 1.6-point gap. The
+  indicator barely fires on full URLs at all; it is not a material driver of R.
+  After stripping both classes to registrable domain the gap is 0.0 points.
+- `url_ip_address`: legit 0.0% vs phish 4.4%. Genuine signal (raw-IP hosts), not a
+  length artefact; preserved under stripping.
+- `url_shortener`: legit 0.8% vs phish 0.0%. Negligible either way.
+- `domain_age` (WHOIS) already operates on the **registrable domain**
+  (`preprocess.ts:192`), so it is *unaffected* by stripping the path/subdomain.
+- `brand_similarity` reads the **SLD label**, unchanged by stripping — not a shape
+  artefact.
+
+**Conclusion: the rule engine does not ride the collection artefact.** Its URL
+indicators encode semantic structure (raw-IP host, typosquat brand distance, young
+WHOIS, invalid TLS), not raw length, so R's discriminative power on URLs comes from
+signal the stripping preserves. The RF was fooled; R substantially is not. That
+contrast is itself a Chapter 4 point: it is evidence the structural layer measures
+something real rather than a dataset shortcut.
+
+### The corpus fix: option (a), strip BOTH classes to registrable domain.
+
+Chosen over (b) re-sourcing full legit URLs. **(a) loses no items to sourcing/dead
+links and the confound check proves it costs the rule engine almost nothing** (shape
+indicators fire on <5% of phishing; WHOIS/brand are unaffected). (b) would add path
+noise and cost sourcing time. Implementation: `eval/normalise_urls.py` writes
+`data/urls_{legit,phish}_domain.txt` as bare `https://<registrable-domain>`; the
+full run uses `run.py --url-mode domain` (default). `--url-mode raw` reproduces the
+artefact-laden corpus so Chapter 4 can show Condition 1 both ways.
+
+**Sub-decisions (flagged for confirmation — reversible; raw files untouched):**
+- **Dedup to unique registrable domains per class**, to avoid double-counting the
+  109 phishing URLs that share a host (e.g. 19× `000webhostapp.com`). Without dedup,
+  those shared-infra R≈0 items would be counted up to 19× each and would inflate the
+  rule layer's apparent false-negative rate — a subtle fabrication. Result: legit 500
+  unique, phish **391** unique. Slight imbalance, reported per-class (precision/recall
+  separately, per the reporting rule) not as F1 alone.
+- **Drop the 6 registrable domains that appear in BOTH classes** (`amazonaws.com`,
+  `azure.com`, `blogspot.com`, `duckdns.org`, `github.io`, `pages.dev`) — after
+  stripping they are ambiguous labels (a shared host is neither inherently phish nor
+  legit). 6/500 = 1.2% removed from each side.
+- 14.6% of phishing stripped onto shared-hosting/dynamic-DNS registrable domains that
+  are themselves legitimate infrastructure (R≈0). These are kept as the honest
+  "phishing on legitimate infrastructure" hard case — the empirical argument for the
+  semantic layer, exactly as the smoke found.
+
+---
+
+## Chapter 4 finding (standalone): hand-designed indicators beat naive lexical ML *because* they encode semantics, not string shape
+
+This is a result in its own right, not a caveat on the baseline.
+
+The same collection artefact that inflates the RF to F1 0.993 (5a) leaves the rule
+engine essentially unaffected. That asymmetry is the point:
+
+- **The Random Forest is fooled by URL *shape*.** Its discriminative power comes from
+  `path_len`, `url_len`, `num_slash` — it learned that the phishing class was collected
+  as full captured URLs and the legit class as bare domains. Remove that shape signal
+  (5c, domain-only) and it falls to F1 0.696 / AUC 0.767. The model had no concept of
+  *why* a URL is dangerous; it keyed on an incidental property of how the corpus was
+  assembled.
+
+- **The rule engine is not**, because every URL indicator encodes a *semantic* claim
+  about phishing, not a string statistic: a raw-IP host bypasses domain reputation; a
+  registrable domain within Levenshtein distance ≤2 of a brand (after homoglyph folding)
+  is typosquatting; a WHOIS age under 30 days is disposable infrastructure; an invalid
+  TLS certificate is an unverified endpoint. None of these is a function of URL length,
+  so stripping the artefact leaves them intact (confirmed offline in `confound_check.py`:
+  subdomain_depth's class gap is 1.6 points and vanishes on normalisation; WHOIS and
+  brand read the registrable domain / SLD, untouched by shape).
+
+**The argument this supports:** a naive lexical classifier trained end-to-end will
+absorb whatever separates the classes in the training data, including dataset
+artefacts, and its headline metric can be almost entirely artefact. Hand-designed
+indicators grounded in the mechanism of the attack cannot ride an artefact they were
+never given, so their (lower) numbers are a truer estimate of real-world power. On
+this corpus the honest gap is F1 0.727 (RF, 5c) versus what the rule/hybrid conditions
+reach on the artefact-free `--url-mode domain` corpus (full run) — reported like for
+like. The methodological lesson (benchmark separable by artefact; feature engineering
+robust to it; end-to-end ML not) is worth more to Chapter 4 than the raw baseline number.
+
+---
+
 ## Chapter 3 refinement: email_auth applicability (the DMARC artefact)
 
 On this corpus **0/3900 SpamAssassin ham** and **2/2138 Nazario phishing** emails
@@ -44,6 +170,36 @@ message carries no SPF/DKIM/DMARC result at all — the same three-state logic a
 WHOIS (present+pass → pass; present+fail → fail; absent → n/a). The applicability
 normalisation renormalises R over the indicators that remain. The fixed weight
 set the ablation depends on is untouched.
+
+## Chapter 3 refinement: NFR02 (rule-only F1) restated  [ROBIU'S CLAIM TO FINALISE]
+
+> Drafted by the assistant at my instruction; the wording and the decision to
+> adopt it are mine to finalise, not the assistant's.
+
+NFR02 as originally written implies every evaluated condition should reach
+F1 > 0.94. That is a category error and is restated as follows.
+
+- **F1 > 0.94 is a target for the HYBRID SYSTEM (the deliverable), not for the
+  standalone conditions.** The rule-only and AI-only conditions are diagnostic
+  baselines that isolate each layer's contribution. They are *expected* to
+  underperform the hybrid, and their individual ceilings quantify the limitation
+  each layer imposes and the other corrects. Measuring them against the hybrid's
+  target is measuring a component against the whole.
+
+- **The rule layer's recall is bounded above by the proportion of threats that
+  are *structurally* detectable.** Modern phishing hosted on legitimate
+  infrastructure (github.io, square.site, shared hosts) with valid certificates
+  and no typosquat, and text-only social engineering carrying no URL or headers
+  at all, are by construction structurally innocent (R ≈ 0). No weighting of
+  structural indicators can catch input that has nothing structurally wrong with
+  it. This is not an implementation shortfall against NFR02 — it is the empirical
+  motivation for the semantic layer. If structural analysis alone reached 0.94,
+  the hybrid would be unmotivated. **The rule layer's ceiling is the argument for
+  fusion.**
+
+**Reporting rule (applies to the whole harness):** report precision and recall
+**separately** everywhere, never F1 alone. The DMARC fix raised rule precision
+but lowered recall; that trade-off is invisible if only F1 is shown.
 
 ## Findings from the 48-item smoke (real data, for Chapters 4/5)
 

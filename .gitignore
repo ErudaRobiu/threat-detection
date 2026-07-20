@@ -38,6 +38,13 @@ yarn-error.log*
 /eval/data/
 /eval/cache.json
 /eval/cache.json.tmp
+# generated figures + metric CSVs (reproduce: run.py/baseline.py/gamma_sweep.py/charts.py)
+/eval/out/
+
+# real redacted emails dropped for the hard-case set (never committed; keep README)
+/eval/hardcases_real/*
+!/eval/hardcases_real/README.md
+/eval/hardcases_cache.json
 
 # vercel
 .vercel

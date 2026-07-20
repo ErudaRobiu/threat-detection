@@ -58,13 +58,25 @@ def _read_text(path):
         return f.read().decode("latin-1", "replace")
 
 
-def load_items():
-    """Return list of dicts: {cid, content, label, kind, src}. label 1 = threat."""
+def load_items(url_mode="domain"):
+    """Return list of dicts: {cid, content, label, kind, src}. label 1 = threat.
+
+    url_mode: 'domain' (default) loads the registrable-domain-normalised URL
+    corpus (urls_*_domain.txt, produced by normalise_urls.py) which removes the
+    collection-shape artefact; 'raw' loads the as-collected full URLs
+    (urls_*.txt) to reproduce the artefact-laden corpus for the Ch4 comparison.
+    See NOTES.md "the URL corpus is trivially separable by a collection artefact".
+    """
     rng = random.Random(SEED)
     buckets = {k: [] for k in TARGETS}
 
+    if url_mode == "raw":
+        url_files = [("urls_legit.txt", 0), ("urls_phish.txt", 1)]
+    else:
+        url_files = [("urls_legit_domain.txt", 0), ("urls_phish_domain.txt", 1)]
+
     # URLs (one per line)
-    for fn, label in [("urls_legit.txt", 0), ("urls_phish.txt", 1)]:
+    for fn, label in url_files:
         p = os.path.join(DATA, fn)
         if os.path.exists(p):
             for line in _read_text(p).splitlines():
@@ -229,12 +241,28 @@ def report(rows):
     # --- Binary @0.3 with FP/FN rates and threshold-free AUC ---
     print(f"\n{'condition':<14}{'n':>5}{'acc':>7}{'prec':>7}{'rec':>7}{'f1':>7}{'fpr':>7}{'fnr':>7}{'auc':>7}   (tp fp tn fn)")
     print("-" * 92)
+    metric_rows = []
     for name, pairs in conds.items():
         m = binary(pairs, THRESHOLD)
         a = auc(pairs)
         astr = f"{a:>7.3f}" if a is not None else f"{'--':>7}"
         print(f"{name:<14}{m['n']:>5}{m['acc']:>7.3f}{m['prec']:>7.3f}{m['rec']:>7.3f}{m['f1']:>7.3f}"
               f"{m['fpr']:>7.3f}{m['fnr']:>7.3f}{astr}   {m['tp']} {m['fp']} {m['tn']} {m['fn']}")
+        metric_rows.append({"condition": name.strip(), "n": m["n"], "acc": m["acc"],
+                            "prec": m["prec"], "rec": m["rec"], "f1": m["f1"],
+                            "fpr": m["fpr"], "fnr": m["fnr"],
+                            "auc": "" if a is None else f"{a:.4f}",
+                            "tp": m["tp"], "fp": m["fp"], "tn": m["tn"], "fn": m["fn"]})
+
+    # machine-readable per-condition metrics for charts.py (Condition 5/RF is
+    # merged in by charts.py from baseline_preds.csv; run.py never calls the RF).
+    with open(os.path.join(HERE, "out", "metrics.csv"), "w", newline="") as fh:
+        cols = ["condition", "n", "acc", "prec", "rec", "f1", "fpr", "fnr", "auc",
+                "tp", "fp", "tn", "fn"]
+        w = csv.DictWriter(fh, fieldnames=cols)
+        w.writeheader()
+        for row in metric_rows:
+            w.writerow(row)
 
     # --- Threshold sweep: F1 at each condition's OWN optimal threshold ---
     print("\nF1 at each condition's optimal threshold (full 0..1 sweep):")
@@ -281,9 +309,12 @@ def report(rows):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=None, help="stratified subset size (smoke test)")
+    ap.add_argument("--url-mode", choices=["domain", "raw"], default="domain",
+                    help="'domain' (default, artefact-free) or 'raw' (as-collected full URLs)")
     args = ap.parse_args()
 
-    items = load_items()
+    print(f"url-mode: {args.url_mode}")
+    items = load_items(url_mode=args.url_mode)
     counts = {}
     for it in items:
         counts[(it["kind"], it["label"])] = counts.get((it["kind"], it["label"]), 0) + 1
