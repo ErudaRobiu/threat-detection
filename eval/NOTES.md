@@ -157,6 +157,85 @@ robust to it; end-to-end ML not) is worth more to Chapter 4 than the raw baselin
 
 ---
 
+## Chapter 4 finding (standalone): the structural-cleanliness CAP — deny-by-default inverts to permit-by-default for text-only social engineering on legitimate infrastructure
+
+Surfaced by a REAL phishing email (UNDP advance-fee scam, arrived in a live inbox
+2026-07-19, saved as `hardcases_real/undp_advance_fee.eml`): dkim/spf/dmarc all
+pass on `alerts.esds.co.in` (a real Indian host the attacker had authenticated SMTP
+credentials on), no http/https URL at all (only a `mailto:`), Reply-To on
+zohomail.com mismatching the From. The system scored it **Medium**. Not a bug — it
+reproduces the smoke's "phishing on legitimate infrastructure" mode on real data and
+exposes a structural ceiling.
+
+### The cap, confirmed algebraically
+
+`H = alpha·R + beta·A + gamma·R·A`, alpha=beta=(1-gamma)/2. When **R = 0**:
+
+    H = beta·A = ((1-gamma)/2)·A          (the R·A term vanishes)
+
+so H scales only with A and is bounded by beta:
+
+| gamma | beta | R=0, A=1.0 -> H | class (Med>=0.3, High>=0.6) |
+|---|---|---|---|
+| 0.2 (deployed) | 0.40 | **0.40** | Medium |
+| 0.0 (ablation) | 0.50 | **0.50** | Medium |
+
+**A structurally clean email cannot exceed 0.40 (deployed) / 0.50 (ablation)
+regardless of how certain the semantic layer is.** To reach High (0.6) at A=1.0 a
+message needs R >= 0.20 (gamma=0) or R >= 0.333 (gamma=0.2). Text-only social
+engineering on legitimate infrastructure (R ~ 0) is **capped at Medium by
+construction** — it can be flagged, never blocked.
+
+### This is NOT a harmful gate flip — it is worse
+
+The obvious hypothesis (the gate demoted a real threat High->Medium) is **false**: at
+R~0 the item is Medium under *both* gamma settings, because low R caps it below High
+*before the interaction term acts*. The gate lowers the ceiling 0.50->0.40 (Medium
+either way); it is not what holds the threat out of High. **The cap is structural, not
+a gate artefact** — removing gamma would not fix it. (It is consistent with the gamma
+sweep finding that gamma only ever causes harmful movement, but the mechanism here is
+the R-weighting, not the product term.)
+
+### The count (the Chapter 4 number)
+
+Items with **R < 0.15 AND A > 0.8** are all capped at H <= 0.405 (Medium), i.e. real
+threats the semantic layer is >80% sure about, held at "flag, don't block":
+
+- main smoke cache: **4/24** items-with-A — **all 4 are true threats** (label 1).
+- hard-case cache (partial, 20 items): **10/20** — **all 10 are true threats**.
+- **Combined: 14 cached items in this band, 14/14 genuine phishing, zero false.**
+  H values 0.360–0.405, every one Medium.
+
+Preliminary (full 1,600 run pending); the definitive count comes from the full run.
+But the direction is unambiguous: the band is populated entirely by real threats the
+structural cap keeps out of High.
+
+### Why this is the mirror of the URL abstention bug
+
+The URL abstention bug scored `A = null` ("nothing to read") as if it were "cleared".
+Here, low R ("structurally clean") is treated as evidence of safety — but **SPF/DKIM/
+DMARC passing only proves the sender controls the sending domain (authenticity), not
+that the sender is trustworthy.** An attacker with credentials on any legitimate host
+passes all three trivially, as this real email did. Structural cleanliness is being
+read as safety when it only ever meant provenance.
+
+**No formula change yet — numbers first, decision pending (Robiu).** Options on the
+table if adopted: an A-dominant floor (H >= A - delta), a semantic-override when
+A is very high regardless of R, or reweighting so structure cannot alone veto a
+high-confidence semantic verdict. Each is a change to the core thesis and is the
+user's to make. See also [[symmetric-abstention]].
+
+### PENDING: per-item UNDP breakdown (needs the .eml + a live API call)
+
+To be filled once `hardcases_real/undp_advance_fee.eml` is present: R, A, H, the full
+nine-indicator applied/passed breakdown, and — critically — **whether the body's
+`zohomail.com` (in a mailto:) was extracted as a URL**. If it was, all six URL
+indicators evaluate against it and, being a clean domain, PASS, collapsing R further
+and turning a genuine Reply-To-mismatch signal into apparent cleanliness. That
+extraction question is itself a correctness check to report explicitly.
+
+---
+
 ## Chapter 3 refinement: email_auth applicability (the DMARC artefact)
 
 On this corpus **0/3900 SpamAssassin ham** and **2/2138 Nazario phishing** emails
