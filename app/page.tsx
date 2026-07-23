@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type DragEvent, type ClipboardEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { UploadCloud, Loader2, ImagePlus, X } from "lucide-react";
 import type { AnalysisResult, ContentType } from "@/core/types";
 import { DEMO_INPUTS } from "@/core/demo-inputs";
@@ -24,6 +24,21 @@ interface Shot {
 }
 
 /**
+ * A stable id. crypto.randomUUID exists only in a secure context — it is absent
+ * when the app is opened over a plain-HTTP LAN address (e.g. http://192.168.x.x
+ * from a phone), where relying on it throws and silently kills image adds. Fall
+ * back to a timestamp+random id so uploads work everywhere.
+ */
+function uid(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  } catch {
+    // fall through
+  }
+  return `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
  * Downscale to a 1400px long edge at JPEG 0.85 before upload. Phone screenshots
  * arrive at 3x and we would otherwise pay image tokens for pixels the OCR never
  * uses. We never go below ~1200px: homoglyph fidelity (digit-one vs letter-L)
@@ -42,10 +57,10 @@ async function downscale(file: File): Promise<Shot> {
     canvas.height = h;
     canvas.getContext("2d")!.drawImage(bitmap, 0, 0, w, h);
     const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej()), "image/jpeg", 0.85));
-    return { id: crypto.randomUUID(), url: URL.createObjectURL(blob), blob };
+    return { id: uid(), url: URL.createObjectURL(blob), blob };
   } catch {
     // e.g. HEIC that the browser cannot decode: send the original, let the server transcribe it.
-    return { id: crypto.randomUUID(), url: URL.createObjectURL(file), blob: file };
+    return { id: uid(), url: URL.createObjectURL(file), blob: file };
   }
 }
 
@@ -118,17 +133,26 @@ export default function Home() {
     if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
   }
 
-  // Paste a screenshot straight from the clipboard (Cmd/Ctrl+V) into the drop zone.
-  function onPaste(e: ClipboardEvent) {
-    const files = Array.from(e.clipboardData.items)
-      .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
-      .map((it) => it.getAsFile())
-      .filter((f): f is File => f !== null);
-    if (files.length) {
-      e.preventDefault();
-      addFiles(files);
+  // Paste a screenshot from the clipboard (Cmd/Ctrl+V) anywhere on the page — not
+  // only when the drop zone has focus. Text pastes fall through to the textarea
+  // untouched; only image files are intercepted.
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files = Array.from(items)
+        .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
+        .map((it) => it.getAsFile())
+        .filter((f): f is File => f !== null);
+      if (files.length) {
+        e.preventDefault();
+        addFiles(files);
+      }
     }
-  }
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images]);
 
   const canSubmit = !loading && (images.length > 0 || content.trim().length > 0);
 
@@ -136,6 +160,10 @@ export default function Home() {
     <div className="workspace">
       <div className="left-col">
         <div className="card">
+          <div className="console-head">
+            <span className="tracking-label">Intake</span>
+            <span className="armed">▲ ARMED</span>
+          </div>
           <div className="seg">
             {TABS.map((t) => (
               <button key={t.id} className={typeChoice === t.id ? "active" : ""} onClick={() => setTypeChoice(t.id)}>
@@ -156,11 +184,12 @@ export default function Home() {
             }}
             onDragLeave={() => setHot(false)}
             onDrop={onDrop}
-            onPaste={onPaste}
           >
-            <svg className="dz-border">
-              <rect />
-            </svg>
+            <span className="dz-corner tl" aria-hidden="true" />
+            <span className="dz-corner tr" aria-hidden="true" />
+            <span className="dz-corner bl" aria-hidden="true" />
+            <span className="dz-corner br" aria-hidden="true" />
+            {!content && images.length === 0 && <div className="dz-sweep" aria-hidden="true" />}
             {loading && <div className="scanline" />}
             <div className={`dz-hint ${content || images.length ? "hidden" : ""}`}>
               <div className="dz-chip">
@@ -216,8 +245,12 @@ export default function Home() {
           </div>
 
           <button className="analyse-btn" onClick={submit} disabled={!canSubmit}>
-            {loading ? <Loader2 size={16} strokeWidth={1.5} className="spin" /> : null}
-            {loading ? "Analysing" : images.length ? `Analyse ${images.length} screenshot${images.length > 1 ? "s" : ""}` : "Analyse"}
+            {loading ? <Loader2 size={16} strokeWidth={1.5} className="spin" /> : <span aria-hidden="true">▶</span>}
+            {loading
+              ? "ANALYSING"
+              : images.length
+                ? `ANALYSE ${images.length} SHOT${images.length > 1 ? "S" : ""}`
+                : "ANALYSE"}
           </button>
         </div>
 
@@ -245,7 +278,20 @@ export default function Home() {
 
       <div>
         {error && <div className="error-banner">{error}</div>}
-        {result ? <ThreatReport key={result.id} result={result} /> : !error && <Overview />}
+        {result ? (
+          <ThreatReport
+            key={result.id}
+            result={result}
+            onReset={() => {
+              setResult(null);
+              setContent("");
+              setImages([]);
+              setError(null);
+            }}
+          />
+        ) : (
+          !error && <Overview />
+        )}
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ function riskVar(v: number): string {
   return "var(--green)";
 }
 const riskClass = (v: number) => (v >= 0.8 ? "risk-critical" : v >= 0.6 ? "risk-high" : v >= 0.3 ? "risk-medium" : "risk-low");
+const sevName = (v: number) => (v >= 0.8 ? "critical" : v >= 0.6 ? "high" : v >= 0.3 ? "medium" : "low");
 const fmtTime = (ms: number) => (ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`);
 
 const URL_RE = /((?:https?:\/\/|www\.)[^\s<>()]+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s<>()]*)?)/gi;
@@ -36,9 +37,21 @@ function highlightUrls(text: string) {
 }
 
 /** A component-score metric tile (R or A). */
-function Tile({ label, value, caption, icon: Icon }: { label: string; value: number | null; caption: string; icon: LucideIcon }) {
+function Tile({
+  label,
+  value,
+  caption,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number | null;
+  caption: string;
+  icon: LucideIcon;
+  tone: "rule" | "ai";
+}) {
   return (
-    <div className="tile">
+    <div className={`tile ${tone === "ai" ? "tile-ai" : ""}`}>
       <div className="tchip">
         <Icon size={17} strokeWidth={1.5} />
       </div>
@@ -57,8 +70,10 @@ function Tile({ label, value, caption, icon: Icon }: { label: string; value: num
   );
 }
 
-export default function ThreatReport({ result }: { result: AnalysisResult }) {
+export default function ThreatReport({ result, onReset }: { result: AnalysisResult; onReset?: () => void }) {
   const {
+    id,
+    contentType,
     classification,
     action,
     ruleScore,
@@ -81,14 +96,30 @@ export default function ThreatReport({ result }: { result: AnalysisResult }) {
 
   return (
     <div className="report">
+      {/* Case bar — content type, case id, and a reset to a fresh analysis */}
+      <div className="report-head">
+        <div className="rh-left">
+          <span className="rh-badge">{contentType}</span>
+          <span className="rh-case mono">
+            CASE #{String(id).padStart(6, "0")} · {fmtTime(timings.total)}
+          </span>
+        </div>
+        {onReset && (
+          <button className="rh-new" onClick={onReset}>
+            ＋ NEW ANALYSIS
+          </button>
+        )}
+      </div>
+
       {!aiAvailable && (
         <div className="notice">
           AI content analysis was unavailable — this verdict rests on the rule-based layer alone (A set equal to R). Provisional.
         </div>
       )}
 
-      {/* 1. VERDICT — hero panel with the glow and the arc gauge */}
-      <div className="block hero">
+      {/* 1. VERDICT — hero panel, flooded with the severity colour and the arc gauge */}
+      <div className="block hero" data-sev={sevName(hybridScore)}>
+        <div className="hero-lines" aria-hidden="true" />
         <div className="hero-inner">
           <Gauge H={hybridScore} classification={classification} />
           <div className="hero-action">
@@ -112,8 +143,8 @@ export default function ThreatReport({ result }: { result: AnalysisResult }) {
       <div className="block">
         <div className="block-title">Score decomposition</div>
         <div className="tiles">
-          <Tile label="R · rule" value={ruleScore} caption="structural" icon={Ruler} />
-          <Tile label="A · ai" value={aiScore} caption="semantic" icon={Brain} />
+          <Tile label="R · rule" value={ruleScore} caption="structural" icon={Ruler} tone="rule" />
+          <Tile label="A · ai" value={aiScore} caption="semantic" icon={Brain} tone="ai" />
         </div>
 
         <div className="fusion">
@@ -184,7 +215,7 @@ export default function ThreatReport({ result }: { result: AnalysisResult }) {
           patterns.map((p, idx) => (
             <div className="pattern" key={`${p.id}-${idx}`}>
               <div className="plabel tracking-label">{p.label}</div>
-              <div className="quote">{p.evidence}</div>
+              <div className="quote">“{p.evidence}”</div>
             </div>
           ))
         )}
