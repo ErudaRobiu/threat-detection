@@ -14,8 +14,8 @@
  * would have pasted, and hands that text to the ordinary pipeline. It is an input
  * adapter that sits BEFORE preprocess, never inside it. It judges nothing.
  *
- * A separate, cheaper model (GEMINI_TRANSCRIBE_MODEL, default gemini-2.5-flash-
- * lite) does this mechanical work. Responses are cached by SHA-256 of the image
+ * A separate, cheaper model (GEMINI_TRANSCRIBE_MODEL, default gemini-flash-lite-
+ * latest) does this mechanical work. Responses are cached by SHA-256 of the image
  * bytes.
  */
 
@@ -96,7 +96,7 @@ export async function transcribeImage(base64: string, mimeType: string): Promise
   if (cached !== null) return cached;
 
   const apiKey = requireEnv("GEMINI_API_KEY");
-  const model = process.env.GEMINI_TRANSCRIBE_MODEL ?? "gemini-2.5-flash-lite";
+  const model = process.env.GEMINI_TRANSCRIBE_MODEL ?? "gemini-flash-lite-latest";
 
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
