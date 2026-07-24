@@ -592,13 +592,26 @@ the formula is the author's to change, and nothing changes until the run ends.)
   Offline: none.** "schooll" is a plausible token, not a brand typosquat, on a
   genuine, certificated, aged domain. Knowing the path is wrong requires knowing
   the site's *real* path structure — a crawl, an allowlist, or an online check.
-  **Structural analysis on a legitimate domain cannot tell a fabricated-but-
-  plausible path from a real one.** That is a genuine LIMIT, not a defect to
-  paper over, and it belongs in Chapter 5: the correct systemic response is not to
-  claim the path is detected as bad (it cannot be) but to stop issuing *maximum
-  clearance* (H = 0.000, "cleared") for an input whose salient attribute class was
-  never examined — i.e. option (iii): degrade the verdict to "insufficient
-  evidence", the deny-by-default outcome.
+
+**Frame this correctly (Chapter 5) — it is a BOUNDARY CONDITION, not an
+implementation shortcoming.** When an attacker controls a *path* on a legitimate,
+well-established domain, **there is no structural evidence to find — none.** This
+is not a signal *this* detector missed; it is a signal that *does not exist* for
+any purely structural detector. Every structural method shares this blind spot by
+construction, because structure describes the authority (domain/host/certificate/
+headers), and the authority here is genuinely the university's.
+
+So the system's failure was **not** "missed a signal." The failure was
+**asserting safety in the absence of evidence.** Under deny-by-default the correct
+output was *"I cannot verify this"* — and it said *"cleared."* That is the whole
+finding: the defect is the false *assertion of clearance*, not an undetected
+attack. The engineering response is therefore not a cleverer detector (none can
+exist offline) but **option (iii): cap R so an input whose salient attribute class
+was never examined degrades to "insufficient evidence to clear", never to
+H = 0.000 "cleared."** The absence of verification must not read as verification —
+the exact principle Chapter 3 states for WHOIS, applied where it was missing.
+**(Analysis only. Do NOT implement (iii) yet — post-run, and the author decides,
+because it invalidates every cached R.)**
 
 ### (b) R = 0.000 population by true label — PENDING the full run
 To fill once run.py finishes: of all URL items, how many land at R = 0.000
