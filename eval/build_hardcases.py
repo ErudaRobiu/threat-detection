@@ -220,16 +220,35 @@ def collect_authored():
             for content, category in authored_items()]
 
 
+# filename prefix -> (label, category). Legit prefixes keep label 0; threat
+# prefixes (spam/phish/scam) set label 1 so a real threat email — e.g. the
+# "Brunette Ready to Share Life's Joys" adult-dating spam — can be dropped in as
+# a genuine label-1 item, not only a legit one. Convention: <prefix>__anything.eml
+REAL_PREFIX = {
+    "marketing":     (0, "marketing-urgency"),
+    "transactional": (0, "transactional-urgency"),
+    "security":      (0, "security-urgency"),
+    "internal":      (0, "internal-business"),
+    "spam":          (1, "spam-real"),
+    "phish":         (1, "phish-real"),
+    "scam":          (1, "scam-real"),
+}
+
+
 def collect_real_redacted():
-    """User-dropped real emails in hardcases_real/ (usually empty)."""
+    """User-dropped real emails in hardcases_real/ (usually empty).
+
+    label + category come from the filename prefix (see REAL_PREFIX). A
+    `spam__`/`phish__`/`scam__` prefix marks the drop as a real THREAT (label 1);
+    anything else defaults to legit transactional-urgency (label 0), preserving
+    the original behaviour."""
     out = []
     for p in sorted(glob.glob(os.path.join(REAL_DIR, "*"))):
         base = os.path.basename(p)
         if base == "README.md":
             continue
-        cat = base.split("__", 1)[0] if "__" in base else "transactional-urgency"
-        cat = {"marketing": "marketing-urgency", "transactional": "transactional-urgency",
-               "security": "security-urgency", "internal": "internal-business"}.get(cat, "transactional-urgency")
+        prefix = base.split("__", 1)[0] if "__" in base else ""
+        label, cat = REAL_PREFIX.get(prefix, (0, "transactional-urgency"))
         try:
             with open(p, "rb") as f:
                 raw = f.read()
@@ -241,7 +260,7 @@ def collect_real_redacted():
             content = _reconstruct(frm, reply_to, subject, body)
         else:
             content = raw.decode("utf-8", "replace")
-        out.append({"content": content, "label": 0, "category": cat,
+        out.append({"content": content, "label": label, "category": cat,
                     "source": "real-redacted", "synthetic": False})
     return out
 

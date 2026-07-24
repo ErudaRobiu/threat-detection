@@ -14,9 +14,11 @@ One email per file. Two accepted forms:
 - **`.txt`** — plain text. Put the subject on the first line as `Subject: ...`,
   then a blank line, then the body.
 
-## Filename convention (sets the category)
+## Filename convention (sets the label AND category)
 
-`<category>__<anything>.eml|.txt`  — double underscore after the category.
+`<prefix>__<anything>.eml|.txt`  — double underscore after the prefix.
+
+**Legit (label 0) — the primary use of this folder:**
 
 | prefix | category | examples |
 |---|---|---|
@@ -25,9 +27,20 @@ One email per file. Two accepted forms:
 | `security__`      | security-urgency       | login alert, fraud alert, password reset you requested |
 | `internal__`      | internal-business      | payroll/deadline/IT-notice from your org |
 
-e.g. `security__real_bank_login_alert.eml`, `transactional__dpd_delivery.txt`,
-`marketing__retailer_flash_sale.txt`, `internal__payroll_cutoff.txt`.
-(No recognised prefix → defaults to `transactional-urgency` with a warning.)
+**Threat (label 1) — for real threat emails you want in the corpus:**
+
+| prefix | category | examples |
+|---|---|---|
+| `spam__`  | spam-real  | adult/dating spam, e.g. "Brunette Ready to Share Life's Joys" |
+| `phish__` | phish-real | real credential-phish / fake-invoice you received |
+| `scam__`  | scam-real  | advance-fee / 419 / inheritance, e.g. the UNDP notice |
+
+e.g. `security__real_bank_login_alert.eml`, `scam__undp_advance_fee.eml`,
+`spam__brunette_life_joys.eml`.
+(No recognised prefix → defaults to legit `transactional-urgency`.)
+
+After dropping a file: `python3 build_hardcases.py && python3 hardcase_run.py`
+(rebuild the corpus, then score the new item — one API call, rest served from cache).
 
 ## What to redact — and what NOT to
 
