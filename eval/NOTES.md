@@ -208,7 +208,9 @@ threats the semantic layer is >80% sure about, held at "flag, don't block":
 
 Preliminary (full 1,600 run pending); the definitive count comes from the full run.
 But the direction is unambiguous: the band is populated entirely by real threats the
-structural cap keeps out of High.
+structural cap keeps out of High. **[SUPERSEDED 2026-07-24 by the full 99-item
+hard-case run: band = 35 items, 33 threats / 2 legit — see the Chapter-4 HTSA-E
+section at the end of this file.]**
 
 ### Why this is the mirror of the URL abstention bug
 
@@ -225,14 +227,32 @@ A is very high regardless of R, or reweighting so structure cannot alone veto a
 high-confidence semantic verdict. Each is a change to the core thesis and is the
 user's to make. See also [[symmetric-abstention]].
 
-### PENDING: per-item UNDP breakdown (needs the .eml + a live API call)
+### RESOLVED: per-item UNDP breakdown (scored 2026-07-24, live API)
 
-To be filled once `hardcases_real/undp_advance_fee.eml` is present: R, A, H, the full
-nine-indicator applied/passed breakdown, and — critically — **whether the body's
-`zohomail.com` (in a mailto:) was extracted as a URL**. If it was, all six URL
-indicators evaluate against it and, being a clean domain, PASS, collapsing R further
-and turning a genuine Reply-To-mismatch signal into apparent cleanliness. That
-extraction question is itself a correctness check to report explicitly.
+`hardcases_real/scam__undp_advance_fee.eml` (advance-fee UNDP "compensation" scam),
+now in the corpus as **label 1, scam-real**. Full breakdown:
+
+- **R = 0.500, A = 0.900, H = 0.650 → HIGH.**
+- From: `Achim Steiner <esds-7141-ocp@alerts.esds.co.in>` ·
+  Reply-To: `danielzerby010@zohomail.com`.
+- Nine indicators: **six URL indicators all NOT APPLICABLE** ("submission contains
+  no URL"). `email_auth` NOT APPLICABLE (reconstructed message carries no SPF/DKIM/
+  DMARC records). Applicable set = **two**: `reply_to_mismatch` **FAIL** (replies go
+  to zohomail.com ≠ sender esds.co.in) and `html_form_in_email` PASS.
+- R algebra: `1 − (0.10·pass)/(0.10+0.10) = 1 − 0.10/0.20 = 0.500`. ✓
+
+**The correctness check the earlier note flagged — did `zohomail.com` get extracted
+as a URL and collapse R? NO.** It sits in the Reply-To *header*, not a body
+`mailto:`, so no URL indicator fired and the Reply-To-mismatch signal is intact.
+No spurious R-collapse.
+
+**Consequence for the HTSA-E story (report this straight, do not massage):** UNDP
+does **NOT** exhibit the structural-cleanliness ceiling defect. Its Reply-To
+mismatch earns R = 0.5, so *plain* HTSA already scores it High (0.65) — both layers
+convict. The ceiling defect is exhibited by items with **R ≈ 0** (no structural tell
+at all), not by UNDP. UNDP is a good adversarial *twin* (it looks like it should be
+clean but isn't) and a fair label-1 addition, but the ceiling-defect exemplar it was
+hoped to be, it is not. The real exemplars are the R<0.15 & A>0.8 band below.
 
 ---
 
@@ -250,10 +270,10 @@ WHOIS (present+pass → pass; present+fail → fail; absent → n/a). The applic
 normalisation renormalises R over the indicators that remain. The fixed weight
 set the ablation depends on is untouched.
 
-## Chapter 3 refinement: NFR02 (rule-only F1) restated  [ROBIU'S CLAIM TO FINALISE]
+## Chapter 3 refinement: NFR02 (rule-only F1) restated  [FINAL — approved 2026-07-24]
 
-> Drafted by the assistant at my instruction; the wording and the decision to
-> adopt it are mine to finalise, not the assistant's.
+> Drafted by the assistant at my instruction; reviewed and APPROVED AS FINAL by
+> Robiu on 2026-07-24. This is the wording that goes into the report.
 
 NFR02 as originally written implies every evaluated condition should reach
 F1 > 0.94. That is a category error and is restated as follows.
@@ -415,3 +435,67 @@ timesheet now at: https://hr.internal.example.com/timesheet
 
 These three occupy the high-A / low-R corner where `|R − A|` is largest, so they
 are also the peak-suppression points on the gate-suppression-vs-|R−A| scatter.
+
+---
+
+## Chapter 4: HTSA-E (Condition 6), tau derivation, and the agreement-gate FP test  [2026-07-24, 99-item hard-case corpus + 48-item main smoke]
+
+Run: `python3 hardcase_run.py` (99 items, 0 errors) and `python3 htsa_e.py` (147
+items = 99 hard-case + 48 main smoke, joined by cached R,A). All metrics report
+**precision and recall separately**, never F1 alone.
+
+### The ceiling defect, sized (Condition 6's motivation)
+Algebra: with R=0, `H = ((1-gamma)/2)·A`. At gamma=0.2, A=1.0 -> H=0.40 (Medium;
+High needs 0.60). Even at gamma=0, H=0.50 (still Medium). A structurally clean email
+the semantic layer is certain about is **capped at Medium by construction**.
+- **Defect size (R<0.15 & A>0.8), 147 items: 35 capped at Medium — 33 threats / 2 legit.**
+  33 real phishing/scam messages the AI is >80% sure about, held at "flag, don't
+  block" purely because their structure is clean (phishing on legit infra / text-only).
+
+### tau derivation (NOT hand-picked)
+tau = lowest value at which NO legitimate TRAINING item escalates. On a 60/40
+train split (seed 42, 88 train / 59 test):
+- **Legit escalation ceiling = 0.90**, set by the **A-arm** (an *authored/synthetic*
+  security-urgency legit item, A=0.90). tau = ceiling + 0.01 = **0.910**.
+- **Legit ceilings, kept SEPARATE (per the reporting rule):**
+  **A-ceiling = 0.90**, **R-ceiling = 0.50.** Neither reaches tau, so no legit escalates.
+- Clean separation exists: 20/40 train threats sit at/above tau (they escalate).
+- CAVEAT: the ceiling that sets tau is a **synthetic** authored item, not real mail.
+  tau is anchored to authored data — state this; the full run may move it.
+- GUARD holds: marketing (A=0.40) and bank-alert (A=0.78) do NOT escalate at tau=0.91.
+
+### Conditions 1-4 + 6 side by side (test split, n=59, threshold 0.3)
+| # | condition | n | prec | rec | FPR | FNR | AUC | (tp fp tn fn) |
+|---|---|--:|--:|--:|--:|--:|--:|---|
+| 1 | rule R      | 59 | 0.667 | 0.121 | 0.077 | 0.879 | 0.623 | 4 2 24 29 |
+| 2 | AI A        | 53 | 0.725 | 0.967 | 0.478 | 0.033 | 0.964 | 29 11 12 1 |
+| 3 | HTSA gamma=0   | 59 | 0.909 | 0.909 | 0.115 | 0.091 | 0.929 | 30 3 23 3 |
+| 4 | HTSA gamma=0.2 | 59 | 0.906 | 0.879 | 0.115 | 0.121 | 0.932 | 29 3 23 4 |
+| 6 | HTSA-E      | 59 | 0.906 | 0.879 | 0.115 | 0.121 | 0.932 | 29 3 23 4 |
+
+Condition 6 == Condition 4 on binary @0.3 **by design**: HTSA-E only escalates
+Medium->High (above the 0.3 clearance line), so a clearance-line confusion matrix
+cannot see it. Its effect is a **tier movement**, not a clearance flip.
+
+### Tier movement, HTSA-E vs HTSA gamma=0.2 (whole 147-item set) — the real Condition-6 metric
+- **BENEFIT: 33 threats moved Medium -> High/Critical.**
+- benefit: 3 further threats moved up a tier.
+- **COST: 0 legitimate items moved up a tier.**
+36 threats escalated out of "flag, don't block" into "block", zero legitimate
+false escalations. This is the contribution HTSA-E adds on top of the gate.
+
+### ITEM 7 — does the AGREEMENT GATE suppress any false positive? (99-item hard-case corpus)
+At the 0.3 clearance line, moving gamma 0 -> 0.2:
+- **False positives suppressed (legit flagged -> cleared): 1** —
+  authored security-urgency legit, R=0.000 A=0.700, H 0.350 -> 0.280.
+- **True positives lost (threat flagged -> cleared): 2** —
+  two Nazario delivery-phish, R≈0.11-0.17 A=0.50-0.55, H≈0.33 -> ≈0.28.
+- Net at gamma=0.2 vs gamma=0: precision 0.821 -> 0.830 (+0.009), recall 0.939 ->
+  0.898 (-0.041); fp 10 -> 9, fn 3 -> 5.
+
+**Honest verdict:** the gate DOES suppress a false positive — exactly one — but at
+this operating point it costs two true positives, a **net-negative trade** on this
+corpus, and the single FP saved is a **synthetic** authored item. The gate's
+false-positive suppression is real but marginal here; the FP corpus is too thin to
+show it decisively. Reported as a limitation, not dressed up. The full 1,600 run is
+the definitive test.
