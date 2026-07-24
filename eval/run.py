@@ -172,7 +172,10 @@ def call_api(content, retries=4):
                         "H": d.get("hybridScore"), "cls": d.get("classification"),
                         "aiAvailable": d.get("aiAvailable")}
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < retries:
+            # 429 = rate limit; 404/5xx from a route that DOES exist (health OK,
+            # GET gives 405) is a transient next-dev hiccup over a long run, not a
+            # real miss. Retry both with backoff before giving up on the item.
+            if e.code in (429, 404, 500, 502, 503, 504) and attempt < retries:
                 time.sleep(backoff)
                 backoff *= 2
                 continue
