@@ -613,11 +613,26 @@ the exact principle Chapter 3 states for WHOIS, applied where it was missing.
 **(Analysis only. Do NOT implement (iii) yet — post-run, and the author decides,
 because it invalidates every cached R.)**
 
-### (b) R = 0.000 population by true label — PENDING the full run
-To fill once run.py finishes: of all URL items, how many land at R = 0.000
-exactly, split by label. Any phishing URLs at R = 0.000 are a measured
-false-negative population and a Chapter-4 number (the path blind spot's footprint
-on the real corpus). Added to the post-run task list.
+### (b) R = 0.000 population by true label — PARTIAL (clean cache, n=724 URLs)
+Of the 724 URL items that genuinely scored, **285 land at R = 0.000 exactly:
+206 legitimate / 79 phishing**. The **79 phishing URLs at R = 0.000 are a measured
+structural false-negative population — 79/343 = 23% of the phishing URLs that
+scored.** These are phishing on clean/legitimate infrastructure and bare domains
+with no structural tell (the path blind spot's footprint on the real corpus): the
+rule layer clears nearly a quarter of real phishing URLs at maximum confidence,
+which is precisely the empirical argument for the semantic layer and for the
+option-(iii) coverage cap. FINAL number pending a clean resumed run (rate-limit
+degradation cost ~467 items; the phishing-email class especially is thin at n=19).
+
+### Operational finding (one line for the write-up)
+The Next.js **dev server destabilised under sustained dead-domain WHOIS/TLS load**
+during the phishing-URL block (each dead-domain lookup ~6 s), returning transient
+404s for a stretch of the run. **No result was corrupted:** errored items and
+Gemini-degraded (A=R) items are never cached, so the cache holds only genuine
+scores, and the run is **resumable by design** — a repeated pass re-scores only
+the uncached items. The full run reached all 1,479 items in ~8.8 h but the
+free-tier Gemini rate limit degraded 467 (A=R, uncached) over that span; clean
+scored n = 857.
 
 ### Brunette (second structurally-clean-fraud instance) — identified, NOT analysed
 Per the author's decision (2026-07-24): a second structurally-clean-fraud example,
