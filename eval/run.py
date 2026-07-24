@@ -44,6 +44,10 @@ BASE_URL = os.environ.get("EVAL_BASE_URL", "http://127.0.0.1:3210").rstrip("/")
 MAX_CONTENT = 100_000
 SEED = 42
 THRESHOLD = 0.3
+# seconds to sleep after each LIVE (non-cached) call, to stay under the Gemini
+# free-tier RPM limit. Cached items never sleep, so a resumed run flies through
+# what it already has. Override with EVAL_THROTTLE_SEC.
+THROTTLE = float(os.environ.get("EVAL_THROTTLE_SEC", "4.0"))
 
 # Target class sizes for the full corpus.
 TARGETS = {("url", 0): 500, ("url", 1): 500, ("email", 0): 300, ("email", 1): 300}
@@ -150,24 +154,39 @@ def save_cache(cache):
     os.replace(tmp, CACHE_PATH)
 
 
-def call_api(content):
+def call_api(content, retries=4):
+    """One /api/analyze call. On HTTP 429 (rate limit) back off and retry.
+    Returns aiAvailable so the caller can refuse to cache a DEGRADED (A=R)
+    result — a rate-limited item must retry on the next run, never poison the
+    cache with a fabricated A."""
     body = json.dumps({"content": content[:MAX_CONTENT]}).encode()
-    req = urllib.request.Request(
-        BASE_URL + "/api/analyze", data=body, headers={"Content-Type": "application/json"}
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=90) as r:
-            d = json.load(r)
-            return {"R": d.get("ruleScore"), "A": d.get("aiScore"),
-                    "H": d.get("hybridScore"), "cls": d.get("classification")}
-    except urllib.error.HTTPError as e:
+    backoff = 10.0
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(
+            BASE_URL + "/api/analyze", data=body, headers={"Content-Type": "application/json"}
+        )
         try:
-            msg = json.load(e).get("error", str(e))
-        except Exception:
-            msg = str(e)
-        return {"error": f"{e.code}: {msg}"}
-    except Exception as e:  # noqa
-        return {"error": str(e)}
+            with urllib.request.urlopen(req, timeout=90) as r:
+                d = json.load(r)
+                return {"R": d.get("ruleScore"), "A": d.get("aiScore"),
+                        "H": d.get("hybridScore"), "cls": d.get("classification"),
+                        "aiAvailable": d.get("aiAvailable")}
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < retries:
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+            try:
+                msg = json.load(e).get("error", str(e))
+            except Exception:
+                msg = str(e)
+            return {"error": f"{e.code}: {msg}"}
+        except Exception as e:  # noqa
+            if attempt < retries:
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+            return {"error": str(e)}
 
 
 # --------------------------------------------------------------------------
@@ -327,6 +346,7 @@ def main():
 
     cache = load_cache()
     rows = []
+    live = degraded = 0
     t0 = time.time()
     for i, it in enumerate(run_items, 1):
         cached = cache.get(it["cid"])
@@ -334,17 +354,27 @@ def main():
             res = cached
         else:
             res = call_api(it["content"])
-            if "error" not in res:  # never persist a failure — let it retry next run
+            live += 1
+            # Only persist a genuine result. A DEGRADED result (Gemini failed ->
+            # A=R, aiAvailable false) is not a real A; skip caching so it retries
+            # next run instead of fabricating the semantic layer for this item.
+            if "error" not in res and res.get("aiAvailable") is not False:
                 cache[it["cid"]] = res
                 if i % 10 == 0:
                     save_cache(cache)
+            elif res.get("aiAvailable") is False:
+                degraded += 1
+            if THROTTLE > 0:
+                time.sleep(THROTTLE)  # live calls only; cached items don't sleep
         rows.append({**it, **res})
         tag = res.get("error") or f"R={_f(res.get('R'))} A={_f(res.get('A'))} H={_f(res.get('H'))} {res.get('cls')}"
-        print(f"[{i:>4}/{len(run_items)}] {it['kind']:<5} y={it['label']} {tag}")
+        deg = " DEGRADED(A=R)" if res.get("aiAvailable") is False else ""
+        print(f"[{i:>4}/{len(run_items)}] {it['kind']:<5} y={it['label']} {tag}{deg}")
     save_cache(cache)
 
     errors = sum(1 for r in rows if r.get("error"))
-    print(f"\ndone in {time.time()-t0:.1f}s · cache: {len(cache)} entries · errors: {errors}/{len(rows)}")
+    print(f"\ndone in {time.time()-t0:.1f}s · cache: {len(cache)} entries · "
+          f"live: {live} · degraded(not cached): {degraded} · errors: {errors}/{len(rows)}")
     report(rows)
 
 
