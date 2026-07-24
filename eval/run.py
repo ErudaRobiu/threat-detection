@@ -333,7 +333,13 @@ def main():
     ap.add_argument("--limit", type=int, default=None, help="stratified subset size (smoke test)")
     ap.add_argument("--url-mode", choices=["domain", "raw"], default="domain",
                     help="'domain' (default, artefact-free) or 'raw' (as-collected full URLs)")
+    ap.add_argument("--email-first", action="store_true",
+                    help="process EMAIL items before URL items (resume the rate-limit-"
+                         "starved email class first; emails need no WHOIS/TLS so they are fast)")
     args = ap.parse_args()
+
+    # optional wall-clock cap (env), for a resume the author wants bounded to N hours.
+    max_runtime = float(os.environ.get("EVAL_MAX_RUNTIME_SEC", "0"))  # 0 = no cap
 
     print(f"url-mode: {args.url_mode}")
     items = load_items(url_mode=args.url_mode)
@@ -345,6 +351,14 @@ def main():
           f"email legit {counts.get(('email',0),0)} / phish {counts.get(('email',1),0)}]")
 
     run_items = stratified_subset(items, args.limit)
+    if args.email_first:
+        # stable reorder: emails first, then urls, then text. Cached items are
+        # skipped instantly, so this puts the UNCACHED email work at the front.
+        order = {"email": 0, "url": 1, "text": 2}
+        run_items = sorted(run_items, key=lambda it: order.get(it["kind"], 3))
+        print("EMAIL-FIRST ordering: emails re-scored before any remaining URLs.")
+    if max_runtime:
+        print(f"wall-clock cap: {max_runtime/3600:.1f}h (graceful stop, cache saved).")
     print(f"running {len(run_items)} items against {BASE_URL}\n")
 
     cache = load_cache()
@@ -373,6 +387,17 @@ def main():
         tag = res.get("error") or f"R={_f(res.get('R'))} A={_f(res.get('A'))} H={_f(res.get('H'))} {res.get('cls')}"
         deg = " DEGRADED(A=R)" if res.get("aiAvailable") is False else ""
         print(f"[{i:>4}/{len(run_items)}] {it['kind']:<5} y={it['label']} {tag}{deg}")
+        # progress summary every 50 items
+        if i % 50 == 0:
+            errs = sum(1 for r in rows if r.get("error"))
+            print(f"  --- progress {i}/{len(run_items)} · {time.time()-t0:.0f}s · "
+                  f"live {live} · degraded {degraded} · errors {errs} · cache {len(cache)} ---")
+            save_cache(cache)
+        # graceful wall-clock cap: stop, save, report on what we have
+        if max_runtime and time.time() - t0 > max_runtime:
+            print(f"\n*** wall-clock cap {max_runtime/3600:.1f}h reached at item {i}; "
+                  f"stopping gracefully (partial). ***")
+            break
     save_cache(cache)
 
     errors = sum(1 for r in rows if r.get("error"))
