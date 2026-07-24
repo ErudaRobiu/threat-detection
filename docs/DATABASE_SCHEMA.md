@@ -22,7 +22,10 @@ CREATE TABLE IF NOT EXISTS analyses (
   hybrid_score   REAL    NOT NULL,   -- H in [0,1]
   classification TEXT    NOT NULL,   -- 'Low' | 'Medium' | 'High' | 'Critical'
   ai_available   INTEGER NOT NULL,   -- 1 = Gemini ran; 0 = degraded to rule-only
-  preview        TEXT    NOT NULL    -- single-line, ≤140-char snippet of the input
+  preview        TEXT    NOT NULL,   -- single-line, ≤140-char snippet of the input
+  rules_ms       REAL,               -- NFR01: rule-layer latency (WHOIS/TLS + eval)
+  ai_ms          REAL,               -- NFR01: semantic-layer latency (Gemini)
+  total_ms       REAL                -- NFR01: end-to-end latency
 );
 ```
 
@@ -30,6 +33,9 @@ Read path (`getHistory`): `SELECT … ORDER BY id DESC LIMIT ?` (newest first,
 default 100). `NULL` rule/ai scores are preserved through to the UI as an
 en-dash, so abstention stays visible and is never rendered as 0.
 
-**Note (Chapter 4):** this schema stores **scores, not timings**. NFR01 latency
-evidence comes from the dedicated timing probe (`eval/out/nfr01_timings.txt`),
-not from these rows. A `timings` column will be added post-run for the live demo.
+**Note (Chapter 4):** the `*_ms` columns record per-analysis latency for the live
+demo's history view. The **Chapter-4 NFR01 numbers** still come from the dedicated
+timing probe (`eval/out/nfr01_timings.txt`, fresh cache-missing inputs split by
+content type), because these persisted rows include cache hits that understate
+real latency. The `docs/history_eval_rows.csv` dump predates this column and has
+no timings; new demo analyses will populate it.

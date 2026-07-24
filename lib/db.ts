@@ -41,6 +41,9 @@ export interface HistoryRow {
   classification: string;
   aiAvailable: boolean;
   preview: string;
+  rulesMs: number | null;
+  aiMs: number | null;
+  totalMs: number | null;
 }
 
 // --- lazy, fail-soft connection ---------------------------------------------
@@ -80,7 +83,10 @@ function db(): Db {
         hybrid_score   REAL    NOT NULL,
         classification TEXT    NOT NULL,
         ai_available   INTEGER NOT NULL,
-        preview        TEXT    NOT NULL
+        preview        TEXT    NOT NULL,
+        rules_ms       REAL,             -- NFR01 latency, from result.timings
+        ai_ms          REAL,
+        total_ms       REAL
       );
     `);
     _db = conn;
@@ -113,8 +119,8 @@ export function saveAnalysis(result: AnalysisResult, input: string): void {
       .prepare(
         `INSERT INTO analyses
            (created_at, content_type, rule_score, ai_score, hybrid_score,
-            classification, ai_available, preview)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            classification, ai_available, preview, rules_ms, ai_ms, total_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         result.createdAt,
@@ -125,6 +131,9 @@ export function saveAnalysis(result: AnalysisResult, input: string): void {
         result.classification,
         result.aiAvailable ? 1 : 0,
         makePreview(result, input),
+        result.timings?.rules ?? null,
+        result.timings?.ai ?? null,
+        result.timings?.total ?? null,
       );
   } catch (err) {
     console.error("[lib/db] saveAnalysis failed (analysis unaffected):", err);
@@ -142,7 +151,7 @@ export function getHistory(limit = 100): HistoryRow[] {
     const rows = conn
       .prepare(
         `SELECT id, created_at, content_type, rule_score, ai_score, hybrid_score,
-                classification, ai_available, preview
+                classification, ai_available, preview, rules_ms, ai_ms, total_ms
            FROM analyses
           ORDER BY id DESC
           LIMIT ?`,
@@ -158,6 +167,9 @@ export function getHistory(limit = 100): HistoryRow[] {
       classification: String(r.classification),
       aiAvailable: Number(r.ai_available) === 1,
       preview: String(r.preview),
+      rulesMs: r.rules_ms == null ? null : Number(r.rules_ms),
+      aiMs: r.ai_ms == null ? null : Number(r.ai_ms),
+      totalMs: r.total_ms == null ? null : Number(r.total_ms),
     }));
   } catch (err) {
     console.error("[lib/db] getHistory failed:", err);

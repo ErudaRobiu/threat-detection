@@ -83,6 +83,7 @@ export default function HistoryPage() {
                 <th className="num">A</th>
                 <th className="num">H</th>
                 <th>Verdict</th>
+                <th className="num">ms (r/ai/tot)</th>
                 <th>Preview</th>
               </tr>
             </thead>
@@ -97,6 +98,11 @@ export default function HistoryPage() {
                   <td className={`nowrap ${riskClass[r.classification as RiskLevel] ?? ""}`}>
                     {r.classification}
                     {!r.aiAvailable && <span className="hist-deg mono"> AI↓</span>}
+                  </td>
+                  <td className="num mono">
+                    {r.totalMs == null
+                      ? "—"
+                      : `${Math.round(r.rulesMs ?? 0)}/${Math.round(r.aiMs ?? 0)}/${Math.round(r.totalMs)}`}
                   </td>
                   <td className="hist-prev">{r.preview}</td>
                 </tr>
