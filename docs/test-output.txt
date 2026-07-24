@@ -1,7 +1,6 @@
+ RUN  vitest v3.2.7 /Users/Robiu/threat-detection
 
- RUN  v3.2.7 /Users/Robiu/threat-detection
-
- ✓ core/rules.test.ts > phishing email — all nine indicators applicable > marks all nine indicators applicable 1ms
+ ✓ core/rules.test.ts > phishing email — all nine indicators applicable > marks all nine indicators applicable 2ms
  ✓ core/rules.test.ts > phishing email — all nine indicators applicable > only IP-in-URL and subdomain depth pass (earned = 0.20) 0ms
  ✓ core/rules.test.ts > phishing email — all nine indicators applicable > R = 0.800 0ms
  ✓ core/rules.test.ts > google.com — clean URL submission > has six applicable indicators (the URL set), three not applicable 0ms
@@ -13,6 +12,10 @@
  ✓ core/rules.test.ts > brand impersonation detection > the homoglyph fold is what makes it distance 0 (raw distance is 1) 0ms
  ✓ core/rules.test.ts > brand impersonation detection > microsotf.com impersonates microsoft at distance 2 (typosquat) 0ms
  ✓ core/rules.test.ts > brand impersonation detection > google.com is not flagged (it is the official domain) 0ms
+ ✓ core/rules.test.ts > email authentication applicability (three states) > present + pass -> applicable, passed 0ms
+ ✓ core/rules.test.ts > email authentication applicability (three states) > present + fail -> applicable, failed 0ms
+ ✓ core/rules.test.ts > email authentication applicability (three states) > absent entirely -> INAPPLICABLE, not failed (the pre-DMARC case) 0ms
+ ✓ core/rules.test.ts > email authentication applicability (three states) > a clean email with no auth headers scores R = 0 (email_auth excluded from the denominator) 0ms
  ✓ core/rules.test.ts > weights > sum to 1.000 across all nine indicators 0ms
  ✓ core/htsa.test.ts > both layers agree — the gate opens > H = 0.846 1ms
  ✓ core/htsa.test.ts > both layers agree — the gate opens > classifies Critical 0ms
@@ -23,10 +26,46 @@
  ✓ core/htsa.test.ts > layers disagree — the agreement gate suppresses the false positive > the interaction term is what moved it across the 0.3 threshold 0ms
  ✓ core/htsa.test.ts > rule abstention — H = A > H equals A exactly 0ms
  ✓ core/htsa.test.ts > rule abstention — H = A > classifies on A alone and says so in the workings 0ms
+ ✓ core/htsa.test.ts > semantic abstention — H = R > H equals R exactly (not suppressed by a fabricated A = 0) 0ms
+ ✓ core/htsa.test.ts > semantic abstention — H = R > classifies on R alone and says so in the workings 0ms
+ ✓ core/htsa.test.ts > semantic abstention — H = R > a clean bare URL (R = 0) still clears to Low 0ms
+ ✓ core/htsa.test.ts > semantic abstention — H = R > distinguishes a typosquat from a clean URL, which A = 0 fusion could not 0ms
+ ✓ core/htsa.test.ts > both layers abstain — rejected, not zeroed > throws NoAnalysableContentError rather than returning H = 0 0ms
  ✓ core/htsa.test.ts > H never amplifies — soft-AND guarantee > H <= mean(R, A) across a grid of inputs 1ms
-
- Test Files  2 passed (2)
-      Tests  23 passed (23)
-   Start at  11:47:27
-   Duration  392ms (transform 72ms, setup 0ms, collect 88ms, tests 8ms, environment 0ms, prepare 132ms)
-
+ ✓ core/image-input.test.ts > image input — the transcribed typosquat still reaches the rule engine > the URL is extracted from the transcribed text 2ms
+ ✓ core/image-input.test.ts > image input — the transcribed typosquat still reaches the rule engine > brand impersonation fires on the extracted domain (homoglyph → paypal, distance 0) 1ms
+ ✓ core/image-input.test.ts > image input — the AI never sees the transcribed domain (blindness holds) > the redacted text carries the tokens, proving a link and an address were present 0ms
+ ✓ core/image-input.test.ts > image input — the AI never sees the transcribed domain (blindness holds) > the redacted text does NOT contain the domain, the brand, or the raw URL 0ms
+ ✓ core/preprocess.test.ts > redaction — structural blindness > replaces an http(s) URL with the token 1ms
+ ✓ core/preprocess.test.ts > redaction — structural blindness > hides the typosquat domain the rule engine scores (brand_similarity) 0ms
+ ✓ core/preprocess.test.ts > redaction — structural blindness > redacts www hosts and bare registrable domains 1ms
+ ✓ core/preprocess.test.ts > redaction — structural blindness > redacts email addresses to a DISTINCT token (a different linguistic signal) 0ms
+ ✓ core/preprocess.test.ts > redaction — structural blindness > PRESERVES that a link exists — the action_coercion signal survives 0ms
+ ✓ core/preprocess.test.ts > redaction — structural blindness > does not eat ordinary prose that merely contains dots 0ms
+ ✓ core/preprocess.test.ts > redaction — structural blindness > collapses a URL and its split path into a single token 0ms
+ ✓ core/preprocess.test.ts > redaction — structural blindness > brand names in prose stay visible — that is the AI's job, not infrastructure 0ms
+ ✓ core/preprocess.test.ts > truncation > leaves short text untouched 0ms
+ ✓ core/preprocess.test.ts > truncation > keeps the head and marks the cut when over the limit 0ms
+ ✓ core/preprocess.test.ts > truncation > toRedactedText redacts first, then truncates — no partial domain can survive 0ms
+ ✓ core/preprocess.test.ts > content-type detection > detects an email by its headers 0ms
+ ✓ core/preprocess.test.ts > content-type detection > detects a bare URL submission 1ms
+ ✓ core/preprocess.test.ts > content-type detection > treats prose as text even when it contains a link 0ms
+ ✓ core/preprocess.test.ts > analysable-language threshold (semantic abstention boundary) > N is 15 characters 0ms
+ ✓ core/preprocess.test.ts > analysable-language threshold (semantic abstention boundary) > a bare link abstains 0ms
+ ✓ core/preprocess.test.ts > analysable-language threshold (semantic abstention boundary) > a link with only framing abstains — no manipulation clause to read 0ms
+ ✓ core/preprocess.test.ts > analysable-language threshold (semantic abstention boundary) > a link carrying a real threat clause does NOT abstain 0ms
+ ✓ core/preprocess.test.ts > analysable-language threshold (semantic abstention boundary) > the boundary itself: 14 chars abstains, 15 does not 0ms
+ ✓ core/preprocess.test.ts > analysable-language threshold (semantic abstention boundary) > an email address alone abstains (token stripped, nothing left) 0ms
+ ✓ core/preprocess.test.ts > URL extraction > pulls out every distinct URL/host and sheds trailing punctuation 1ms
+ ✓ core/preprocess.test.ts > URL extraction > does not mistake an email's domain tail for a standalone URL 0ms
+ ✓ core/ai.test.ts > parseAIResponse — valid response > maps confidence to A 1ms
+ ✓ core/ai.test.ts > parseAIResponse — valid response > attaches the canonical label from the id (the model never supplies labels) 0ms
+ ✓ core/ai.test.ts > parseAIResponse — valid response > keeps the explanation 0ms
+ ✓ core/ai.test.ts > parseAIResponse — the verbatim-evidence guard > drops a pattern whose evidence is a paraphrase, keeping the valid one 1ms
+ ✓ core/ai.test.ts > parseAIResponse — the verbatim-evidence guard > accepts evidence that differs only by collapsed whitespace (wrapped line) 0ms
+ ✓ core/ai.test.ts > parseAIResponse — the verbatim-evidence guard > drops a pattern with an unknown id 0ms
+ ✓ core/ai.test.ts > parseAIResponse — defensive coercion > clamps confidence into [0, 1] 0ms
+ ✓ core/ai.test.ts > parseAIResponse — defensive coercion > treats a non-numeric confidence as 0 0ms
+ ✓ core/ai.test.ts > parseAIResponse — defensive coercion > tolerates a missing patterns array 0ms
+ Test Files  5 passed (5)
+      Tests  67 passed (67)
