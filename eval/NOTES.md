@@ -499,3 +499,116 @@ corpus, and the single FP saved is a **synthetic** authored item. The gate's
 false-positive suppression is real but marginal here; the FP corpus is too thin to
 show it decisively. Reported as a limitation, not dressed up. The full 1,600 run is
 the definitive test.
+
+---
+
+## Chapter 4/5 finding: the PATH BLIND SPOT — the third instance of one principle failing [2026-07-24, analysis only; core untouched during the live run]
+
+### The case
+Input: `https://kwasu.edu.ng/schooll-fee-payment` (the author's real university
+domain; the PATH is fabricated — "schooll", two Ls — the exact shape of a
+fee-payment lure a student would click).
+Output: **R = 0.000, A abstained, H = 0.000, LOW RISK, "Content cleared."**
+
+### (a) Indicator breakdown
+Six applicable indicators, all PASS; three email indicators n/a.
+
+| indicator | w | applicable | passed |
+|---|--:|:--:|:--:|
+| domain_age | 0.15 | yes | PASS (6196 days) |
+| ssl_certificate | 0.10 | yes | PASS |
+| url_ip_address | 0.12 | yes | PASS |
+| brand_similarity | 0.15 | yes | PASS (not a typosquat) |
+| subdomain_depth | 0.08 | yes | PASS |
+| url_shortener | 0.08 | yes | PASS |
+| email_auth / reply_to / html_form | — | no | — |
+
+applicableWeight 0.680, passedWeight 0.680 → R = 1 − 0.680/0.680 = **0.000**.
+A abstains (no analysable language in a bare URL) → H = R = 0.000.
+
+**Every one of the nine indicators reads the DOMAIN, the HOST, or EMAIL HEADERS.
+Not one reads the URL path, query, or fragment.** Passing all six URL indicators
+verifies the *authority* component of the URL and says nothing about `/schooll-
+fee-payment`. The lure lives entirely in the unexamined attribute class.
+
+### The principle (this is not a third bug — it is one principle failing a third time)
+1. **URL abstention bug:** `A = 0` meant "nothing to read", was read as "cleared".
+2. **UNDP / structural-cleanliness cap:** low R meant "structurally clean" (SPF
+   passes = sender controls the domain), was read as "safe".
+3. **Path blind spot (this):** *no applicable indicator examined the path*, was
+   read as "verified safe".
+
+Each converts **absence of evidence into evidence of absence** — precisely what
+deny-by-default forbids, and precisely what Chapter 3 already argues explicitly
+for failed WHOIS lookups ("the absence of verification is not verification"). The
+principle is sound; its *application* is inconsistent — it is enforced for
+indeterminate WHOIS/TLS but silently violated wherever an entire attribute class
+has no indicator watching it. That is the write-up: one principle, three sites,
+consistently applied only after this is fixed.
+
+### (c) Should R = 0.0 be reachable at all from six checks that all examine the domain?
+Argued no. "Passed every applicable check" is not "verified safe" when whole
+attribute classes (path/query) were never examined. The Chapter-3 gloss that
+`R = 0.0` means "passed every applicable check" conflates *coverage* with
+*clearance*. Three options, with soundness and cost:
+
+- **(i) residual floor** — R clamped to ≥ ε whenever an attribute class went
+  unexamined.
+  Cost: trivial (one clamp). Soundness: weak/blunt — a magic ε applied to EVERY
+  bare URL, so it lifts clean URLs (google.com) too and risks re-introducing the
+  false positives the whole project fights; ε must thread a needle between
+  "matters" and "doesn't cross 0.3". Does not examine the path; just distrusts
+  all URLs equally.
+
+- **(ii) a tenth PATH indicator** — brand-token misspelling / credential-ish
+  segments (login|verify|payment|secure|update) / excessive path depth.
+  Cost: HIGH. Weights currently sum to 1.000; a tenth indicator forces a
+  re-weight, which changes *every* R in the corpus and invalidates the thresholds
+  and the entire cached run — plus new logic, tests, demo-data regen. Soundness:
+  highest in principle (it actually reads the path), but see (d).
+
+- **(iii) coverage cap (unexamined attribute class = applicability gap)** — extend
+  the existing applicability-normalisation: if no indicator examined attribute
+  class X, cap how low R may go, so clearance is proportional to *coverage*.
+  Cost: moderate, less than (ii) — no re-weight, no new detector; a cap layered on
+  the existing normalised R. Soundness: highest fit to deny-by-default — it
+  encodes exactly "unexamined ≠ verified" without pretending to have examined the
+  path. The verdict becomes "insufficient evidence to clear", not "verified safe".
+
+**Cheapest = (i). Soundest-per-cost = (iii):** it operationalises the exact
+principle Chapter 3 already commits to, costs less than (ii), and avoids (i)'s
+mis-calibration and (ii)'s corpus-invalidating re-weight. (Recommendation only —
+the formula is the author's to change, and nothing changes until the run ends.)
+
+### (d) Would (ii) have caught THIS case? Honest answer: not by the misspelling.
+- The **brand-token-misspelling** arm does NOT fire: "schooll" is not a known
+  brand, and "kwasu" (the brand) is in the domain, not the path.
+- The **credential-ish-segment** arm *would* fire — but only incidentally, on the
+  literal token **"payment"** in the path, NOT on the misspelling. And that arm
+  flags every legitimate `/…-payment`, `/login`, `/account/verify` path on real
+  sites, so it buys this catch at a large false-positive cost on legitimate fee/
+  payment pages (including kwasu.edu.ng's *real* `/school-fee-payment`).
+- **What signal distinguishes `/schooll-fee-payment` from `/school-fee-payment`?
+  Offline: none.** "schooll" is a plausible token, not a brand typosquat, on a
+  genuine, certificated, aged domain. Knowing the path is wrong requires knowing
+  the site's *real* path structure — a crawl, an allowlist, or an online check.
+  **Structural analysis on a legitimate domain cannot tell a fabricated-but-
+  plausible path from a real one.** That is a genuine LIMIT, not a defect to
+  paper over, and it belongs in Chapter 5: the correct systemic response is not to
+  claim the path is detected as bad (it cannot be) but to stop issuing *maximum
+  clearance* (H = 0.000, "cleared") for an input whose salient attribute class was
+  never examined — i.e. option (iii): degrade the verdict to "insufficient
+  evidence", the deny-by-default outcome.
+
+### (b) R = 0.000 population by true label — PENDING the full run
+To fill once run.py finishes: of all URL items, how many land at R = 0.000
+exactly, split by label. Any phishing URLs at R = 0.000 are a measured
+false-negative population and a Chapter-4 number (the path blind spot's footprint
+on the real corpus). Added to the post-run task list.
+
+### Brunette (second structurally-clean-fraud instance) — identified, NOT analysed
+Per the author's decision (2026-07-24): a second structurally-clean-fraud example,
+the "Brunette Ready to Share Life's Joys" adult-dating spam, was identified as a
+candidate but is NOT in any accessible public corpus and was deliberately NOT
+pursued — one email is not worth the time, and **UNDP already documents the
+structurally-clean-fraud case**. Noted here for completeness; not counted anywhere.

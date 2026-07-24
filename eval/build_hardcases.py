@@ -220,6 +220,22 @@ def collect_authored():
             for content, category in authored_items()]
 
 
+# Realistic authored THREATS (label 1) on a REAL, clean domain with a FABRICATED
+# path — the "path blind spot" case (see NOTES.md). The domain is genuine and
+# passes every URL indicator; the lure lives entirely in the unexamined path, so
+# the engine clears it at R=0.000. Included as a measured false negative.
+AUTHORED_REALISTIC = [
+    # (content, category) — real domain kwasu.edu.ng, path 'schooll' (two Ls) authored.
+    ("https://kwasu.edu.ng/schooll-fee-payment", "url-path-lure"),
+]
+
+
+def collect_authored_realistic():
+    return [{"content": content, "label": 1, "category": category,
+             "source": "authored-realistic", "synthetic": True}
+            for content, category in AUTHORED_REALISTIC]
+
+
 # filename prefix -> (label, category). Legit prefixes keep label 0; threat
 # prefixes (spam/phish/scam) set label 1 so a real threat email — e.g. the
 # "Brunette Ready to Share Life's Joys" adult-dating spam — can be dropped in as
@@ -272,6 +288,7 @@ def main():
         "spamassassin transactional": collect_transactional(),
         "calibration seeds": collect_calibration(),
         "authored": collect_authored(),
+        "authored-realistic (path lure)": collect_authored_realistic(),
         "real-redacted": collect_real_redacted(),
     }
 
