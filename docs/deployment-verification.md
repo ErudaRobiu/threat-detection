@@ -48,3 +48,35 @@ The single largest silent-failure risk to the evaluation is closed before Phase 
 
 > To append the per-domain production JSON verbatim, capture
 > `GET https://<deployment>/api/health` and paste it above.
+
+---
+
+## DEMO_MODE offline verification (2026-07-24)
+
+**Requirement (Phase 6):** DEMO_MODE must return the 5 bundled results with the
+network disabled — the app is defended in a room where power and network are
+unreliable.
+
+**Verified two ways:**
+
+1. **Code path (no network dependency).** `core/demo.ts::getDemoResult` is a pure
+   in-memory lookup: `sha256(trimmed input)` against `demo-data.json`, which is a
+   **static `import` bundled at build time** — no `fetch`, no filesystem read, no
+   Gemini. `app/api/analyze/route.ts` calls it *before* `analyze()`, so a demo hit
+   never reaches the network layer (WHOIS/TLS/Gemini) at all.
+
+2. **Empirical timing (live server, DEMO_MODE=1).** All 5 bundled inputs hashed
+   into the bundle and returned in **5–34 ms** — a live analysis is ~3,700 ms, so
+   these made no network call:
+
+   | example | ms | verdict |
+   |---|--:|---|
+   | Phishing email | 34 | Critical (H=0.810) |
+   | Legitimate email | 7 | Low (H=0.020) |
+   | Typosquatted URL | 7 | Medium (H=0.588) |
+   | Clean URL | 5 | Low (H=0.000) |
+   | Borderline marketing email | 7 | **Low (H=0.246)** — agreement gate suppressing the FP |
+
+**Definitive airplane-mode check (30 s, for the defence):** turn Wi-Fi off, run
+`DEMO_MODE=1 npx next dev -p 3210`, submit any of the 5 examples from the "try an
+example" buttons — each returns its full report instantly with no network.
