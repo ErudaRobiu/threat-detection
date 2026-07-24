@@ -1,19 +1,20 @@
 # Results summary — Chapter 4 source (PARTIAL)
 
-> **STATUS: PARTIAL.** The full-corpus run attempted all **1,479** items but the
-> Gemini free-tier rate limit degraded the semantic layer over the ~8.8-hour run
-> (it fails soft to A=R, and those results are deliberately **not cached**), and
-> the process exited during the final email block. What follows is computed from
-> the **clean cache only** — items that genuinely scored, with real R and real A
-> (or a genuine abstention), degraded and errored items excluded.
+> **STATUS: PARTIAL (updated after email-first resume).** The full-corpus run
+> attempted all **1,479** items; the Gemini free-tier rate limit degraded part of
+> the semantic layer (it fails soft to A=R, deliberately **not cached**). An
+> email-first resume then re-scored the rate-limit-starved email class before
+> being stopped. What follows is computed from the **clean cache only** — items
+> that genuinely scored, degraded and errored items excluded.
 >
-> **Clean n = 857 corpus items:** 724 URLs (381 legitimate / 343 phishing) and
-> **133 emails (114 legitimate / only 19 phishing)**. The phishing-email class is
-> the thinnest because Nazario emails ran last, when rate-limiting was heaviest —
-> every email-dependent number below (Condition 2, the gate on emails) rests on
-> small n and must be read as indicative, not final. The **hard-case corpus (100
-> items, 50/50) is complete**, and the Random-Forest baseline (1,000 URLs) is
-> complete. All numbers are marked FINAL only after a clean resumed run.
+> **Clean n = 1,151 corpus items** (was 857 before the resume): 724 URLs (381
+> legitimate / 343 phishing) and **427 emails (297 legitimate / 130 phishing)**.
+> The email-first resume lifted the phishing-email class from 19 to **130**, so
+> the semantic and gate numbers below now rest on an adequate positive class
+> rather than a tiny one. The **hard-case corpus (100 items, 50/50) is complete**,
+> and the Random-Forest baseline (1,000 URLs) is complete. Email coverage is still
+> partial (427 of 600 emails scored); numbers are marked FINAL only after a fully
+> clean run.
 >
 > Reporting rule observed throughout: **precision and recall are reported
 > separately**, never F1 alone. The gate result is reported as numbers, not
@@ -29,12 +30,16 @@ Hardware (Table 4.1): Apple M1 Pro, 10 cores, 16 GB RAM, macOS 26.2 (build
 
 | # | Condition | n | precision | recall | F1 | FPR | AUC |
 |---|---|--:|--:|--:|--:|--:|--:|
-| 1 | Rule only (R) | 857 | 0.831 | 0.555 | 0.666 | 0.083 | 0.739 |
-| 2 | AI only (A) — email only | 129 | 0.750 | 1.000 | 0.857 | 0.044 | 1.000 |
-| 3 | HTSA, γ = 0 (ablation) | 857 | 0.833 | 0.580 | 0.684 | 0.085 | 0.754 |
-| 4 | HTSA, γ = 0.2 (deployed) | 857 | 0.843 | 0.580 | 0.687 | 0.079 | 0.756 |
+| 1 | Rule only (R) | 1151 | 0.817 | 0.482 | 0.606 | 0.075 | 0.712 |
+| 2 | AI only (A) — email only | 423 | 0.823 | 0.960 | 0.886 | 0.088 | 0.979 |
+| 3 | HTSA, γ = 0 (ablation) | 1151 | 0.867 | 0.662 | 0.751 | 0.071 | 0.801 |
+| 4 | HTSA, γ = 0.2 (deployed) | 1151 | 0.880 | 0.649 | 0.747 | 0.062 | 0.804 |
 | 5 | Random Forest, domain-only | 1000 | 0.743 | 0.654 | 0.696 | 0.226 | 0.767 |
-| 6 | HTSA-E (escalation) | 857 | = Condition 4 at t=0.3 (acts above the clearance line — see §3) |
+| 6 | HTSA-E (escalation) | 1151 | = Condition 4 at t=0.3 (acts above the clearance line — see §3) |
+
+Best-F1 over a full threshold sweep: rule 0.622 @0.23, AI 0.946 @0.55, HTSA γ=0
+0.754 @0.32, HTSA γ=0.2 0.754 @0.22. The gate does not raise best-F1 (identical to
+γ=0), consistent with a precision-for-recall trade rather than a strict gain.
 
 Notes on reading this table:
 
@@ -45,10 +50,11 @@ Notes on reading this table:
   for the semantic layer, not an implementation shortfall (see NFR02 restatement
   in `eval/NOTES.md`).
 - **Condition 2 (AI only)** is email-only by construction — the semantic layer
-  abstains on bare URLs (A = null), so the 724 URL items contribute no A. Its
-  n = 129 email items include only ~15–19 phishing emails; the AUC of 1.000 is an
-  artefact of that tiny positive count and must not be reported as a headline. It
-  will move on a resumed run.
+  abstains on bare URLs (A = null), so the 724 URL items contribute no A. After the
+  email-first resume its n = 423 email items include **126 phishing emails**, and
+  its AUC is **0.979** (precision 0.823, recall 0.960) — a credible estimate, no
+  longer the tiny-positive-class 1.000 of the 857-item snapshot. The semantic layer
+  is the strongest single layer on emails.
 - **Condition 5 (Random Forest)** is the domain-only (artefact-free) baseline:
   best-F1 0.727 at its optimal threshold. The inflated F1 = 0.993 obtained on
   full-URL lexical features is a **collection artefact**, not phishing signal (see
@@ -58,47 +64,55 @@ Notes on reading this table:
 
 ## 2. The agreement gate (γ = 0 → γ = 0.2), reported as counts
 
-The gate only acts on items that carry **both** layers (emails; URLs abstain on
-A, so H = R and the gate cannot move them). Two corpora, two outcomes — both
-reported straight:
+The gate only acts on items that carry **both** layers (URLs abstain on A, so
+H = R and the gate cannot move them). Its entire effect therefore lives in the
+**423 dual-layer email items (126 phishing)**, not in the 1,151 total. Three
+corpora, reported straight:
 
-- **Main partial corpus (857 items).** False positives 42 → 39 (**−3 FP
-  suppressed**); true positives 210 → 210 (**0 TP lost**); AUC 0.754 → 0.756.
-  Precision 0.833 → 0.843, recall unchanged at 0.580. On the broad corpus the
-  gate removes three false positives at no true-positive cost.
+- **Main corpus, dual-layer subset (423 emails, 126 phishing).** False positives
+  9 → 3 (**−6 FP suppressed**); true positives 118 → 112 (**−6 TP lost**);
+  precision 0.929 → 0.974, recall 0.937 → 0.889; AUC 0.801 → 0.804. This is a
+  **precision-for-recall trade**, not a free win: six false positives removed at
+  the cost of six true positives. (On the full 1,151 the same movement reads as
+  precision 0.867 → 0.880, FPR 0.071 → 0.062, recall 0.662 → 0.649, AUC up 0.003 —
+  the inert URLs dilute it.)
 - **Hard-case corpus (100 items, complete).** False positives 10 → 9 (**−1 FP
   suppressed**); true positives 46 → 44 (**−2 TP lost**); precision 0.821 → 0.830,
-  recall 0.920 → 0.880. On the adversarial borderline set the single suppressed
-  false positive costs two true positives — a net-negative trade at this operating
-  point. The one FP suppressed is a synthetic authored item.
+  recall 0.920 → 0.880. Net-negative at this operating point.
+- **48-item smoke.** No classification change either way (identical best-F1 0.818,
+  AUC 0.825); mean suppression 0.044.
 
-Mean gate suppression |mean(R,A) − H| at γ = 0.2 is 0.024 (main) / 0.056
-(hard-case); maximum 0.095. The flip-zone (0.25 ≤ mean(R,A) ≤ 0.40, where the
-gate can cross the clearance line) holds 6 items (main) / 10 items (hard-case,
-7 legitimate / 3 threat).
+**Revised reading (supersedes the 857-item snapshot):** with an adequate positive
+class the gate is a consistent **precision-for-recall trade**, not the "3 FP
+suppressed / 0 TP lost" clean win the thinner data suggested. It lowers FPR and
+raises precision, at a matching cost in recall; best-F1 is unchanged. γ above 0.2
+remains harmful throughout. Mean gate suppression at γ = 0.2 is 0.034 (max 0.098);
+the flip-zone (0.25 ≤ mean(R,A) ≤ 0.40) now holds 37 email items.
 
 ## 3. HTSA-E (Condition 6): escalation, tau, and tier movement
 
 HTSA-E adds the disjunctive half of the Chapter-1 posture (either layer may
 convict): H_e = max(H, A if A ≥ τ, R if R ≥ τ). Computed from cached R,A on the
-combined 632 dual-corpus items (545 legitimate / 87 threat).
+combined **926 dual-corpus items (728 legitimate / 198 threat)** after the resume
+(was 632).
 
-- **τ = 0.910**, derived — not hand-picked — as the lowest value at which **no
-  legitimate training item escalates**, i.e. just above the highest legitimate
-  escalation score. On a 60/40 split the legitimate ceiling is 0.90.
-- **Legitimate ceilings, reported separately:** A-arm ceiling **0.90**, R-arm
-  ceiling **0.588**. τ = 0.91 clears both, so no legitimate item escalates. The
-  ceiling is set by the A-arm — a **synthetic authored** security-urgency
-  legitimate item (A = 0.90) — so τ is currently anchored to authored data; state
-  this, and expect movement on a resumed run.
-- **Ceiling defect sized:** 35 items have R < 0.15 and A > 0.8 (structurally clean
-  but semantically near-certain), capped at Medium by plain HTSA — 33 threats and
-  2 legitimate. These are the threats HTSA-E is designed to escalate.
-- **Tier movement, HTSA-E vs HTSA γ=0.2 (632 items):** 33 threats moved
-  Medium → High/Critical, 4 further threats moved up a tier, and **0 legitimate
-  items escalated**. At the clearance threshold of 0.3 the binary metrics are
-  identical to Condition 4, because HTSA-E acts at the Medium/High boundary, above
-  the clearance line — its effect is a tier change, not a clearance flip.
+- **τ = 0.76**, derived — not hand-picked — as the lowest value at which **no
+  legitimate training item escalates**. The resume lowered τ from 0.91 to **0.76**,
+  because a legitimate internal-business item scoring A = 0.75 now sets the ceiling
+  (the 0.90 anchor of the smaller data was not representative). This confirms the
+  earlier caveat that τ was anchored to sparse authored data.
+- **Legitimate ceilings, reported separately:** A-arm ceiling **0.75**, R-arm
+  ceiling **0.588**.
+- **Ceiling defect sized:** 73 items have R < 0.15 and A > 0.8 (structurally clean
+  but semantically near-certain), capped at Medium by plain HTSA — **71 threats and
+  2 legitimate** (was 35 items). These are the threats HTSA-E is designed to escalate.
+- **Tier movement, HTSA-E vs HTSA γ=0.2 (926 items):** **112 threats** moved
+  Medium → High/Critical, 24 further threats moved up a tier, and — importantly —
+  **3 legitimate items now escalate** (was 0). With the larger, lower τ the benefit
+  grows (112 vs 33 threats escalated) but it is **no longer cost-free**: a small
+  number of legitimate items are escalated on held-out data, an honest
+  generalisation gap in the train-derived threshold. At the 0.3 clearance line the
+  binary metrics still match Condition 4 (HTSA-E acts at the Medium/High boundary).
 
 ## 4. Three independent lines of evidence on the gate
 
