@@ -15,7 +15,8 @@ import { analyze, AiUnavailableError } from "@/core/analyze";
 import { transcribeImages } from "@/core/transcribe";
 import { getDemoResult } from "@/core/demo";
 import { NoAnalysableContentError } from "@/core/htsa";
-import type { ContentType, HTSAWeights } from "@/core/types";
+import { saveAnalysis } from "@/lib/db";
+import type { AnalysisResult, ContentType, HTSAWeights } from "@/core/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 45;
@@ -26,6 +27,15 @@ const OK_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/heic",
 
 function fail(error: string, status: number) {
   return NextResponse.json({ error }, { status });
+}
+
+/**
+ * Persist (fail-soft) then respond. saveAnalysis never throws and is a no-op on
+ * Vercel; a history failure must never turn a successful analysis into an error.
+ */
+function ok(result: AnalysisResult, input: string) {
+  saveAnalysis(result, input);
+  return NextResponse.json(result);
 }
 
 export async function POST(req: Request) {
@@ -63,7 +73,7 @@ export async function POST(req: Request) {
 
     try {
       const result = await analyze(transcription, { transcription });
-      return NextResponse.json(result);
+      return ok(result, transcription);
     } catch (err) {
       return mapAnalyzeError(err);
     }
@@ -86,7 +96,7 @@ export async function POST(req: Request) {
 
   try {
     const result = await analyze(content, { contentType: body.contentType, weights: body.weights });
-    return NextResponse.json(result);
+    return ok(result, content);
   } catch (err) {
     return mapAnalyzeError(err);
   }

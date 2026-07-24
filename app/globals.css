@@ -319,3 +319,21 @@ input[type="range"] { width: 100%; accent-color: var(--accent); height: 4px; }
 @media (prefers-reduced-motion: reduce) {
   .scanline, .spin, .sys-dot, .scan-strip .run, .dz-sweep, .deny-tag .flick { animation: none !important; }
 }
+
+/* --- Phase 4 history (plain table) ------------------------------------ */
+.hist-wrap { max-width: 1680px; margin: 0 auto; padding: 26px 34px; }
+.hist-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+.hist-head h2 { font-size: 18px; font-weight: 600; color: var(--text-1); }
+.hist-count { font-size: 11px; color: var(--text-3); letter-spacing: 0.08em; }
+.hist-card { padding: 0; overflow: hidden; }
+.hist-scroll { overflow-x: auto; }
+table.hist { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.hist th, table.hist td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--border); white-space: normal; }
+table.hist thead th { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); background: rgba(0,0,0,0.25); }
+table.hist tbody tr:last-child td { border-bottom: none; }
+table.hist tbody tr:hover { background: rgba(255,255,255,0.02); }
+table.hist td.num, table.hist th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.hist td.nowrap, table.hist th { white-space: nowrap; }
+table.hist td { color: var(--text-2); }
+.hist-prev { color: var(--text-3); max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-deg { color: var(--amber); font-size: 10px; }
